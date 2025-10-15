@@ -25,7 +25,6 @@ def run_logistic_regression(data_path="data/features/eng1_data_combined.csv"):
     model.fit(X_train, y_train) # Model is trained
 
     preds = model.predict(X_test) # Predicted outcomes are stored
-    print(model.coef_)
 
     results = evaluate_model("Logistic Regression", y_test, preds) # Model performance is evaluated and stored in results
     save_results(results) # Model results are saved
