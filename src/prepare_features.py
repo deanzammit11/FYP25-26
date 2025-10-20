@@ -8,15 +8,27 @@ def prepare_features():
     df = df.dropna(subset=["FullTimeResult"]) # Drop rows with missing results
 
     df["ResultEncoded"] = df["FullTimeResult"].map({"H": 1, "D": 0, "A": -1}) # Encode target
+    
+    # Bet365 odds are converted into implied probabilities
+    df["Home"] = 1 / df["Bet365HomeWinOdds"]
+    df["Draw"] = 1 / df["Bet365DrawOdds"]
+    df["Away"] = 1 / df["Bet365AwayWinOdds"]
+
+    df["Total"] = df["Home"] + df["Draw"] + df["Away"] # Calculate the total of the implied probabilities
+    df["Bet365HomeWinOddsPercentage"] = df["Home"] / df["Total"] # Convert the implied home win probability into a percentage
+    df["Bet365DrawOddsPercentage"] = df["Draw"] / df["Total"] # Convert the implied draw probability into a percentage
+    df["Bet365AwayWinOddsPercentage"] = df["Away"] / df["Total"] # Convert the implied away win probability into a percentage
 
     # Derived features
-    df["OddsDifference_Bet365"] = df["Bet365AwayWinOdds"] - df["Bet365HomeWinOdds"]
+    df["OddsDifference_HvA"] = df["Bet365HomeWinOddsPercentage"] - df["Bet365AwayWinOddsPercentage"] # Home vs away odds difference
+    df["OddsDifference_HvD"] = df["Bet365HomeWinOddsPercentage"] - df["Bet365DrawOddsPercentage"] # Home vs draw odds difference
+    df["OddsDifference_AvD"] = df["Bet365AwayWinOddsPercentage"] - df["Bet365DrawOddsPercentage"] # Away vs draw odds difference
 
     # Bookmaker odds features
     odds_cols = [
         "Season", "Date", "HomeTeam", "AwayTeam", "ResultEncoded",
-        "Bet365HomeWinOdds", "Bet365DrawOdds", "Bet365AwayWinOdds",
-        "OddsDifference_Bet365"
+        "Bet365HomeWinOddsPercentage", "Bet365DrawOddsPercentage", "Bet365AwayWinOddsPercentage",
+        "OddsDifference_HvA", "OddsDifference_HvD", "OddsDifference_AvD"
     ]
     df_odds = df[odds_cols].dropna()
     save_csv(df_odds, "data/features/eng1_data_odds.csv")
@@ -24,8 +36,8 @@ def prepare_features():
     # Combined dataset
     modelling_cols = [
         "Season", "Date", "HomeTeam", "AwayTeam", "ResultEncoded",
-        "Bet365HomeWinOdds", "Bet365DrawOdds", "Bet365AwayWinOdds",
-        "OddsDifference_Bet365"
+        "Bet365HomeWinOddsPercentage", "Bet365DrawOddsPercentage", "Bet365AwayWinOddsPercentage",
+        "OddsDifference_HvA", "OddsDifference_HvD", "OddsDifference_AvD"
     ]
     df_combined = df[modelling_cols].dropna()
     save_csv(df_combined, "data/features/eng1_data_combined.csv")
