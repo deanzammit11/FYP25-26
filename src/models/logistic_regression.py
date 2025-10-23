@@ -1,7 +1,15 @@
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning) # Suppresses harmless solver warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=RuntimeWarning)
+
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import GridSearchCV
 from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import StratifiedKFold
+from sklearn.metrics import make_scorer, accuracy_score
+from sklearn_genetic import GASearchCV
+from sklearn_genetic.space import Categorical, Continuous, Integer
 from src.models.evaluate_models import evaluate_model, save_results
 
 def run_logistic_regression(data_path = "data/features/eng1_data_combined.csv"):
@@ -29,53 +37,78 @@ def run_logistic_regression(data_path = "data/features/eng1_data_combined.csv"):
     X_train_scaled = scaler.fit_transform(X_train) # Training data mean and standard deviation of each feature are calculated using fit and they are then scaled using transform to have a mean if 0 and a standard deviation of 1
     X_test_scaled = scaler.transform(X_test) # Test data is scaled using transform but mean and standard deviation are not calculated since the model must not learn anything from the test data
 
-    valid_combinations = { # Valid combinations for solvers and penalty types are defined
-        "lbfgs": ["l2", None], # lbfgs can only work with l2 or no penalty
-        "newton-cg": ["l2", None], # newton-cg can only work with l2 or no penalty
-        "liblinear": ["l1", "l2"], # liblinear can only work with l1 and l2
-        "saga": ["l1", "l2", "elasticnet", None] # saga works with l1, l2, elasticnet and no penalty
-    }
-
-    param_grid = [] # Empty list that will hold one parameter grid for each solver type is initialised
-
-    for solver, penalties in valid_combinations.items(): # Each solver and penalty combination is looped through
-        grid = { # A parameter grid is built for each combination
-            "solver": [solver], # The optimization algorithm which is used
-            "penalty": penalties, # Regularisation type
-            "C": [0.001, 0.01, 0.1, 1, 10, 100], # Inverse of regularisation strength
-            "fit_intercept": [True, False], # Specifies if an intercept term should be included
-            "class_weight": [None, "balanced"], # Controls importance of each class during training
-            "tol": [1e-6, 1e-4, 1e-2], # Convergence tolerance for stopping criteria
-            "max_iter": [500, 1000, 2000], # Maximum number of possible iterations for solver to converge
-            "warm_start": [True, False], # Whether to make use of the previous solution as a starting point
-        }
-
-        if solver == "saga" and "elasticnet" in penalties: # If saga solver and elasticnet penalty are being used l1_ratio is added
-            grid["l1_ratio"] = [0.0, 0.25, 0.5, 0.75, 1.0] # Sets a combination between l1 and l2 where 0.0 = l2 only and 1.0 = l1 only
-
-        param_grid.append(grid) # The current grid is added to the list of parameter grids
-
     base_model = LogisticRegression(random_state = 0) # A logistic regression model is initalised with a fixed random_state
 
-    grid_search = GridSearchCV( # Grid search is setup to find the best combination of parameters through cross validation
-        estimator = base_model, # The model which is being optmised
-        param_grid = param_grid, # The parameter combinations to test
-        scoring = "accuracy", # The metric used to evaluate performance
-        cv = 3, # Cross validation is set to 3 fold
-        n_jobs = -1, # All CPU cores are utilised
-        verbose = 2, # Progress is displayed in terminal
-        error_score = "raise" # Error is raised if a fit fails
-    )
+    solver_spaces = { # Solver specific search spaces are defined
+        "lbfgs": { # lbfgs can only work with l2 or no penalty
+            "solver": Categorical(["lbfgs"]),
+            "penalty": Categorical(["l2", None])
+        },
+        "newton-cg": { # newton-cg can only work with l2 or no penalty
+            "solver": Categorical(["newton-cg"]),
+            "penalty": Categorical(["l2", None])
+        },
+        "liblinear": { # liblinear can only work with l1 and l2
+            "solver": Categorical(["liblinear"]),
+            "penalty": Categorical(["l1", "l2"])
+        },
+        "saga": { # saga works with l1, l2, elasticnet and no penalty
+            "solver": Categorical(["saga"]),
+            "penalty": Categorical(["l1", "l2", "elasticnet", None]),
+            "l1_ratio": Continuous(0.0, 1.0)
+        }
+    }
 
-    print("Running grid search.") # Prints message to reassure that grid search is running
-    grid_search.fit(X_train_scaled, y_train) # Parameter tuning is performed on scaled data
+    common_params = { # Common solver parameters
+        "C": Continuous(0.001, 100.0), # Inverse of regularisation strength
+        "fit_intercept": Categorical([True, False]), # Specifies if an intercept term should be included
+        "class_weight": Categorical([None, "balanced"]), # Controls importance of each class during training
+        "tol": Continuous(1e-6, 1e-2, distribution="log-uniform"), # Convergence tolerance for stopping criteria
+        "max_iter": Integer(500, 2000), # Maximum number of possible iterations for solver to converge
+        "warm_start": Categorical([True, False]) # Whether to make use of the previous solution as a starting point
+    }
 
-    print("Grid Search Complete. Best Parameters:") # Prints message confirmation message that grid search completed successfully
-    print(grid_search.best_params_) # Best parameters found from grid search are printed
-    print(f"Best Cross Validation Accuracy: {grid_search.best_score_:.4f}") # Best cross validation accuracy is printed
+    cv = StratifiedKFold(n_splits=3, shuffle=True) # Cross validation is set to 3 fold with each fold maintaining the same ratio of outcomes as the full dataset.
 
-    model = grid_search.best_estimator_ # Model trained using the best parameters is retrieved
-    preds = model.predict(X_test_scaled) # Predicted outcomes are stored
+    best_model = None # Variable to store the best performing model is defined
+    best_score = 0 # Variable to store the best achieved score is defined
+    best_params = None # Variable to store parameters of the best model is defined
+
+    for solver_name, space in solver_spaces.items(): # Genetic algorithm is run for each solver not to have compatibility issues
+        print(f"Running Genetic Algorithm for solver: {solver_name}")
+
+        param_grid = {**space, **common_params} # Solver-specific and common parameter spaces are combined into a single dictionary
+
+        ga_search = GASearchCV( # Genetic Algorithm Search is setup to find the best combination of parameters
+            estimator = base_model, # The model which is being optimised
+            param_grid = param_grid, # The parameter combinations to test
+            scoring = make_scorer(accuracy_score), # Custom scoring function is used to compute fitness based on model accuracy
+            cv = cv, # Previously defined StratifiedKFold cross validator
+            population_size = 25, # Number of individuals in each generation
+            generations = 15, # Number of generations that the algorithm will evolve through
+            n_jobs = -1, # All CPU cores are utilised
+            verbose = True, # Progress is displayed in terminal
+            keep_top_k = 4, # 4 best performing individuals from each generation are kept
+            crossover_probability = 0.8, # Probability that two parent individuals will exchange parameter values
+            mutation_probability = 0.1, # Probability that a parameter in an individual will mutate
+            tournament_size = 3, # Number of individuals competing in each tournament selection event
+            criteria = "max" # Scoring function will be maximised
+        )
+
+        ga_search.fit(X_train_scaled, y_train) # Parameter tuning is performed on scaled data
+
+        print(f"Solver {solver_name} Complete.") # Prints confirmation message that genetic algorithm ran successfully
+
+        if ga_search.best_score_ > best_score: # Updates best model if current solver achieves a higher accuracy
+            best_score = ga_search.best_score_ # Best accuracy is overwritten
+            best_model = ga_search.best_estimator_ # Best model is overwritten
+            best_params = ga_search.best_params_ # Best parameters are overwritten
+
+    print("Best Parameters Found:") # Prints confirmation message that genetic algorithm completed successfully
+    print(best_params) # Best parameters found from the genetic algorithm are printed
+    print(f"Best Cross Validation Accuracy: {best_score:.4f}") # Best cross validation accuracy is printed
+
+    preds = best_model.predict(X_test_scaled) # Predicted outcomes are stored
 
     results = evaluate_model("Logistic Regression", y_test, preds) # Model performance is evaluated and stored in results
     save_results(results) # Model results are saved
@@ -84,7 +117,8 @@ def run_logistic_regression(data_path = "data/features/eng1_data_combined.csv"):
     out["Predicted"] = preds # Add a predicted column to the dataframe
     out.to_csv("data/results/logistic_regression_2023_predictions.csv", index = False) # Converts the final dataframe to csv and appends it to existing csv or stores it in new csv
     print("Predictions saved to: data/results/logistic_regression_2023_predictions.csv") # Prints confirmation that the results have been stored
-    return model, results # Returns the trained model and the respective results
+
+    return best_model, results # Returns the trained model and the respective results
 
 if __name__ == "__main__":
     run_logistic_regression()

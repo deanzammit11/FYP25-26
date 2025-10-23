@@ -1,6 +1,9 @@
 import pandas as pd
 from xgboost import XGBClassifier
-from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import StratifiedKFold
+from sklearn.metrics import make_scorer, accuracy_score
+from sklearn_genetic import GASearchCV
+from sklearn_genetic.space import Categorical, Continuous, Integer
 from src.models.evaluate_models import evaluate_model, save_results
 
 def run_xgboost(data_path = "data/features/eng1_data_combined.csv"):
@@ -24,20 +27,6 @@ def run_xgboost(data_path = "data/features/eng1_data_combined.csv"):
     X_test = test_df[features] # Features used for testing
     y_test = test_df["ResultEncoded"] + 1 # Results used for testing and adding 1 since xgboost requires match outcomes to be in the form of 0, 1 and 2 not -1, 0 and 1
     
-    param_grid = {
-        "learning_rate": [0.05, 0.1, 0.2], # Step size at each boosting step
-        "n_estimators": [300, 400, 500], # Number of trees to build
-        "max_depth": [4, 6, 8], # Maximum depth of each tree
-        "min_child_weight": [1, 5], # Minimum sum of instance weights in a child node
-        "gamma": [0, 1], # Minimum loss reduction required to further split a leaf node
-        "subsample": [0.8, 1.0], # Fraction of training samples used for each boosting round
-        "colsample_bytree": [0.8, 1.0], # Fraction of features used by tree
-        "reg_lambda": [0.5, 1.0, 2.0], # L2 regularisation term
-        "reg_alpha": [0.0, 0.5], # L1 regularisation term
-        "scale_pos_weight": [1, 1.5], # Adjusts for class imbalance where 1 = no correction and 1.5 = slightly favors minority classes
-        "grow_policy": ["depthwise"] # Tree growth strategy
-    }
-
     base_model = XGBClassifier(
         objective = "multi:softprob", # Multi-class classification outputting class probabilities.
         num_class = 3, # Refers to 3 possible outcome classes
@@ -45,26 +34,48 @@ def run_xgboost(data_path = "data/features/eng1_data_combined.csv"):
         random_state = 0, # Ensure results are reproducible and consistent
         n_jobs = -1, # Enables usage of all available CPU cores
         tree_method = "hist", # Uses a histogram based algorithm for building the trees
-    )
+    )    
 
-    grid_search = GridSearchCV( # Grid search is setup to find the best combination of parameters through cross validation
+    param_grid = {
+        "learning_rate": Continuous(0.01, 0.3), # Step size at each boosting step
+        "n_estimators": Integer(300, 500), # Number of trees to build
+        "max_depth": Integer(4, 8), # Maximum depth of each tree
+        "min_child_weight": Integer(1, 5), # Minimum sum of instance weights in a child node
+        "gamma": Continuous(0, 2), # Minimum loss reduction required to further split a leaf node
+        "subsample": Continuous(0.6, 1.0), # Fraction of training samples used for each boosting round
+        "colsample_bytree": Continuous(0.6, 1.0), # Fraction of features used by tree
+        "reg_lambda": Continuous(0.1, 3.0), # L2 regularisation term
+        "reg_alpha": Continuous(0.0, 1.0), # L1 regularisation term
+        "scale_pos_weight": Continuous(1.0, 1.5), # Adjusts for class imbalance where 1 = no correction and 1.5 = slightly favors minority classes
+        "grow_policy": Categorical(["depthwise"]) # Tree growth strategy
+    }
+
+    cv = StratifiedKFold(n_splits=3, shuffle=True) # Cross validation is set to 3 fold with each fold maintaning the same ratio of outcomes as the full dataset.
+
+    ga_search = GASearchCV( # Grid search is setup to find the best combination of parameters through cross validation
         estimator = base_model, # The model which is being optmised
         param_grid = param_grid, # The parameter combinations to test
-        scoring = "accuracy", # The metric used to evaluate performance
-        cv = 3, # Cross validation is set to 3 fold
+        scoring = make_scorer(accuracy_score), # Custom scoring function is used to compute fitness based on model accuracy
+        cv = cv, # Previously defined StratifiedKFold cross validator
+        population_size = 25, # Number of individuals in each generation
+        generations = 15, # Number of generations that the algorithm will evolve through
         n_jobs = -1, # All CPU cores are utilised
-        verbose = 2, # Progress is displayed in terminal
-        error_score = "raise" # Error is raised if a fit fails
+        verbose = True, # Progress is displayed in terminal
+        keep_top_k = 4, # 4 best performing individuals from each generation are kept
+        crossover_probability = 0.8, # Probability that two parent individuals will exchange parameter values
+        mutation_probability = 0.1, # Probability that a parameter in an individual will mutate
+        tournament_size = 3, # # Number of individuals competing in each tournament selection event
+        criteria = "max" # Scoring function will be maximised
     )
 
-    print("Running grid search.") # Prints message to reassure that grid search is running
-    grid_search.fit(X_train, y_train) # Parameter tuning is performed
+    print("Running genetic algorithm.") # Prints message to reassure that the genetic algorithm is running
+    ga_search.fit(X_train, y_train) # Parameter tuning is performed
 
-    print("Grid Search Complete. Best Parameters:") # Prints message confirmation message that grid search completed successfully
-    print(grid_search.best_params_) # Best parameters found from grid search are printed
-    print(f"Best Cross-Validation Accuracy: {grid_search.best_score_:.4f}") # Best cross validation accuracy is printed
+    print("Genetic algorithm Complete. Best Parameters:") # Prints confirmation message that genetic algorithm completed successfully
+    print(ga_search.best_params_) # Best parameters found from the genetic algorithm are printed
+    print(f"Best Cross Validation Accuracy: {ga_search.best_score_:.4f}") # Best cross validation accuracy is printed
 
-    model = grid_search.best_estimator_ # Model trained using the best parameters is retrieved
+    model = ga_search.best_estimator_ # Model trained using the best parameters is retrieved
     preds = model.predict(X_test) # Predicted outcomes are stored
     preds = preds - 1 # Subtracting 1 to convert predicted outcomes back to the original format
     y_test = y_test - 1 # Subtracting 1 to convert testing outcomes back to the original format
