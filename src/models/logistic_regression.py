@@ -1,9 +1,6 @@
-import warnings
-warnings.filterwarnings("ignore", category=UserWarning) # Suppresses harmless solver warnings
-warnings.filterwarnings("ignore", category=FutureWarning)
-warnings.filterwarnings("ignore", category=RuntimeWarning)
-
+import numpy as np
 import pandas as pd
+import random
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import StratifiedKFold
@@ -13,6 +10,10 @@ from sklearn_genetic.space import Categorical, Continuous, Integer
 from src.models.evaluate_models import evaluate_model, save_results
 
 def run_logistic_regression(data_path = "data/features/eng1_data_combined.csv"):
+    random_seed = 0 # Seed value is set to 0
+    np.random.seed(random_seed) # Random seed for numpy random number generator is set
+    random.seed(random_seed) # Random seed for python random number generator is set
+
     df = pd.read_csv(data_path) # Loads dataset
 
     train_df = df[df["Season"] < 2023] # Splits training data using 2019 - 2022 Seasons
@@ -39,45 +40,45 @@ def run_logistic_regression(data_path = "data/features/eng1_data_combined.csv"):
 
     base_model = LogisticRegression(random_state = 0) # A logistic regression model is initalised with a fixed random_state
 
-    solver_spaces = { # Solver specific search spaces are defined
+    solver_spaces = { # Solver specific search spaces are defined with random seed applied to space parameter to ensure consistency
         "lbfgs": { # lbfgs can only work with l2 or no penalty
-            "solver": Categorical(["lbfgs"]),
-            "penalty": Categorical(["l2", None])
+            "solver": Categorical(["lbfgs"], random_state=random_seed),
+            "penalty": Categorical(["l2", None], random_state=random_seed)
         },
         "newton-cg": { # newton-cg can only work with l2 or no penalty
-            "solver": Categorical(["newton-cg"]),
-            "penalty": Categorical(["l2", None])
+            "solver": Categorical(["newton-cg"], random_state=random_seed),
+            "penalty": Categorical(["l2", None], random_state=random_seed)
         },
         "liblinear": { # liblinear can only work with l1 and l2
-            "solver": Categorical(["liblinear"]),
-            "penalty": Categorical(["l1", "l2"])
+            "solver": Categorical(["liblinear"], random_state=random_seed),
+            "penalty": Categorical(["l1", "l2"], random_state=random_seed)
         },
         "saga": { # saga works with l1, l2, elasticnet and no penalty
-            "solver": Categorical(["saga"]),
-            "penalty": Categorical(["l1", "l2", "elasticnet", None]),
-            "l1_ratio": Continuous(0.0, 1.0)
+            "solver": Categorical(["saga"], random_state=random_seed),
+            "penalty": Categorical(["l1", "l2", "elasticnet", None], random_state=random_seed),
+            "l1_ratio": Continuous(0.0, 1.0, random_state=random_seed)
         }
     }
 
-    common_params = { # Common solver parameters
-        "C": Continuous(0.001, 100.0), # Inverse of regularisation strength
-        "fit_intercept": Categorical([True, False]), # Specifies if an intercept term should be included
-        "class_weight": Categorical([None, "balanced"]), # Controls importance of each class during training
-        "tol": Continuous(1e-6, 1e-2, distribution="log-uniform"), # Convergence tolerance for stopping criteria
-        "max_iter": Integer(500, 2000), # Maximum number of possible iterations for solver to converge
-        "warm_start": Categorical([True, False]) # Whether to make use of the previous solution as a starting point
+    common_params = { # Common solver parameters with random seed applied to each parameter to ensure consistency
+        "C": Continuous(0.001, 100.0, random_state=random_seed), # Inverse of regularisation strength
+        "fit_intercept": Categorical([True, False], random_state=random_seed), # Specifies if an intercept term should be included
+        "class_weight": Categorical([None, "balanced"], random_state=random_seed), # Controls importance of each class during training
+        "tol": Continuous(1e-6, 1e-2, distribution="log-uniform", random_state=random_seed), # Convergence tolerance for stopping criteria
+        "max_iter": Integer(500, 2000, random_state=random_seed), # Maximum number of possible iterations for solver to converge
+        "warm_start": Categorical([True, False], random_state=random_seed) # Whether to make use of the previous solution as a starting point
     }
 
-    cv = StratifiedKFold(n_splits=3, shuffle=True) # Cross validation is set to 3 fold with each fold maintaining the same ratio of outcomes as the full dataset.
+    cv = StratifiedKFold(n_splits=3, shuffle=False) # Cross validation is set to 3 fold with each fold maintaining the same ratio of outcomes as the full dataset.
 
     best_model = None # Variable to store the best performing model is defined
     best_score = 0 # Variable to store the best achieved score is defined
     best_params = None # Variable to store parameters of the best model is defined
 
     for solver_name, space in solver_spaces.items(): # Genetic algorithm is run for each solver not to have compatibility issues
-        print(f"Running Genetic Algorithm for solver: {solver_name}")
+        print(f"Running Genetic Algorithm for Solver: {solver_name}") # Confrimation message showing that the genetic algorithm is being run for that solver
 
-        param_grid = {**space, **common_params} # Solver-specific and common parameter spaces are combined into a single dictionary
+        param_grid = {**space, **common_params} # Solver specific and common parameter spaces are combined into a single dictionary
 
         ga_search = GASearchCV( # Genetic Algorithm Search is setup to find the best combination of parameters
             estimator = base_model, # The model which is being optimised
@@ -92,7 +93,7 @@ def run_logistic_regression(data_path = "data/features/eng1_data_combined.csv"):
             crossover_probability = 0.8, # Probability that two parent individuals will exchange parameter values
             mutation_probability = 0.1, # Probability that a parameter in an individual will mutate
             tournament_size = 3, # Number of individuals competing in each tournament selection event
-            criteria = "max" # Scoring function will be maximised
+            criteria = "max", # Scoring function will be maximised
         )
 
         ga_search.fit(X_train_scaled, y_train) # Parameter tuning is performed on scaled data
@@ -104,7 +105,7 @@ def run_logistic_regression(data_path = "data/features/eng1_data_combined.csv"):
             best_model = ga_search.best_estimator_ # Best model is overwritten
             best_params = ga_search.best_params_ # Best parameters are overwritten
 
-    print("Best Parameters Found:") # Prints confirmation message that genetic algorithm completed successfully
+    print("Genetic Algorithm Complete. Best Parameters:") # Prints confirmation message that genetic algorithm completed successfully
     print(best_params) # Best parameters found from the genetic algorithm are printed
     print(f"Best Cross Validation Accuracy: {best_score:.4f}") # Best cross validation accuracy is printed
 
