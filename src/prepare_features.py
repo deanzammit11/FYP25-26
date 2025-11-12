@@ -2,8 +2,8 @@ import pandas as pd
 from src.utils import ensure_dirs, save_csv
 
 def prepare_features():
-    ensure_dirs("data/features")
-    df = pd.read_csv("data/processed/eng1_all_seasons.csv")
+    ensure_dirs("data/features") # Checks if directory exists and if it does not it creates it
+    df = pd.read_csv("data/processed/eng1_all_seasons.csv") # Csv file is read from the specified directory and stored in a data frame
 
     df = df.dropna(subset=["FullTimeResult"]) # Drop rows with missing results
 
@@ -30,8 +30,8 @@ def prepare_features():
         "Bet365HomeWinOddsPercentage", "Bet365DrawOddsPercentage", "Bet365AwayWinOddsPercentage",
         "OddsDifference_HvA", "OddsDifference_HvD", "OddsDifference_AvD"
     ]
-    df_odds = df[odds_cols].dropna()
-    save_csv(df_odds, "data/features/eng1_data_odds.csv")
+    df_odds = df[odds_cols].dropna() # Null values are removed
+    save_csv(df_odds, "data/features/eng1_data_odds.csv") # Csv without null values is saved into the specified directory
 
     # Combined dataset
     modelling_cols = [
@@ -39,5 +39,5 @@ def prepare_features():
         "Bet365HomeWinOddsPercentage", "Bet365DrawOddsPercentage", "Bet365AwayWinOddsPercentage",
         "OddsDifference_HvA", "OddsDifference_HvD", "OddsDifference_AvD"
     ]
-    df_combined = df[modelling_cols].dropna()
-    save_csv(df_combined, "data/features/eng1_data_combined.csv")
+    df_combined = df[modelling_cols].dropna() # Null values are removed
+    save_csv(df_combined, "data/features/eng1_data_combined.csv") # Csv without null values is saved into specified directory
