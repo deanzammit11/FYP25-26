@@ -69,7 +69,7 @@ def run_logistic_regression(data_path = "data/features/eng1_data_combined.csv"):
         "warm_start": Categorical([True, False], random_state=random_seed) # Whether to make use of the previous solution as a starting point
     }
 
-    cv = StratifiedKFold(n_splits=4, shuffle=False) # Cross validation is set to 3 fold with each fold maintaining the same ratio of outcomes as the full dataset.
+    cv = StratifiedKFold(n_splits=3, shuffle=False) # Cross validation is set to 3 fold with each fold maintaining the same ratio of outcomes as the full dataset.
 
     best_model = None # Variable to store the best performing model is defined
     best_score = 0 # Variable to store the best achieved score is defined
