@@ -4,15 +4,15 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from src.utils import ensure_dirs, extract_model_name_from_filename
 
-def plot_predicted_vs_actual_by_season(predictions_path: str = "data/results/*_predictions.csv", output_path: str = "data/results"):
+def plot_predicted_vs_actual_by_season(predictions_path: str = "data/results/*[0-9][0-9][0-9][0-9]_predictions.csv", output_path: str = "data/results"):
     ensure_dirs(output_path) # Checks if directory exists and if it does not it creates it
 
-    files = sorted(glob.glob(predictions_path)) # All prediction files which match predictions_path are stored in files
+    paths = sorted(glob.glob(predictions_path)) # All prediction file paths which match predictions_path are stored in files
     
-    if not files: # If no files are found
+    if not paths: # If no paths are found
         print(f"No prediction files found for pattern: {predictions_path}") # A message stating that no prediction files were found is printed
     else:
-        for file_path in files: # For each predictions csv file
+        for file_path in paths: # For each predictions csv file
             model = extract_model_name_from_filename(file_path) # The model name is extracted from the filename
             df = pd.read_csv(file_path) # The predictions csv is loaded
 
