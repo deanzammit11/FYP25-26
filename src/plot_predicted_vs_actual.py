@@ -4,7 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from src.utils import ensure_dirs, extract_model_name_from_filename
 
-def plot_predicted_vs_actual_by_season(predictions_path: str = "data/results/*[0-9][0-9][0-9][0-9]_predictions.csv", output_path: str = "data/results"):
+def plot_predicted_vs_actual_by_season(predictions_path: str = "data/results/*/*[0-9][0-9][0-9][0-9]_predictions.csv", output_path: str = "data/results"):
     ensure_dirs(output_path) # Checks if directory exists and if it does not it creates it
 
     paths = sorted(glob.glob(predictions_path)) # All prediction file paths which match predictions_path are stored in files
@@ -15,6 +15,15 @@ def plot_predicted_vs_actual_by_season(predictions_path: str = "data/results/*[0
         for file_path in paths: # For each predictions csv file
             model = extract_model_name_from_filename(file_path) # The model name is extracted from the filename
             df = pd.read_csv(file_path) # The predictions csv is loaded
+
+            base_results_path = os.path.join("data", "results") # Creates data/results as the base path by joining data and results since all model subfolders lie in there
+            try:
+                path_difference = os.path.relpath(file_path, base_results_path) # Captures the difference of the predictions file path relative to data/results
+                model_folder = path_difference.split(os.sep)[0] # Splits the path difference with / acting as the seperator and takes the first element which will always be the model name
+                output_path = os.path.join(base_results_path, model_folder) # Joins the base path with the model folder to obtain the final path for that model
+            except ValueError:
+                output_path = os.path.dirname(file_path) # The path for the predictions file is used if the path difference cannot be computed
+            ensure_dirs(output_path) # Checks if directory exists and if it does not it creates it
 
             required_columns = {"Season", "ResultEncoded", "Predicted"} # The required columns are defined
             missing = required_columns - set(df.columns) # Missing required columns are identified by working out the set difference

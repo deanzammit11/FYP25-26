@@ -1,10 +1,11 @@
 import numpy as np
 import pandas as pd
 import random
+import os
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import StratifiedKFold
-from sklearn.metrics import make_scorer, accuracy_score
+from sklearn.model_selection import StratifiedGroupKFold
+from sklearn.metrics import make_scorer, f1_score
 from sklearn_genetic import GASearchCV
 from sklearn_genetic.space import Categorical, Continuous, Integer
 from src.models.evaluate_models import evaluate_model, save_results
@@ -26,7 +27,8 @@ def run_logistic_regression(data_path = "data/features/eng1_data_combined.csv"):
         "Bet365AwayWinOddsPercentage",
         "OddsDifference_HvA",
         "OddsDifference_HvD",
-        "OddsDifference_AvD"
+        "OddsDifference_AvD",
+        "HomeAdvantageIndex"
     ]
 
     X_train = train_df[features] # Features used for training
@@ -38,7 +40,7 @@ def run_logistic_regression(data_path = "data/features/eng1_data_combined.csv"):
     X_train_scaled = scaler.fit_transform(X_train) # Training data mean and standard deviation of each feature are calculated using fit and they are then scaled using transform to have a mean if 0 and a standard deviation of 1
     X_test_scaled = scaler.transform(X_test) # Test data is scaled using transform but mean and standard deviation are not calculated since the model must not learn anything from the test data
 
-    base_model = LogisticRegression(random_state = 0) # A logistic regression model is initalised with a fixed random_state
+    base_model = LogisticRegression(random_state = 0, warm_start = False) # A logistic regression model is initalised with a fixed random_state
 
     solver_spaces = { # Solver specific search spaces are defined with random seed applied to space parameter to ensure consistency
         "lbfgs": { # lbfgs can only work with l2 or no penalty
@@ -65,11 +67,39 @@ def run_logistic_regression(data_path = "data/features/eng1_data_combined.csv"):
         "fit_intercept": Categorical([True, False], random_state=random_seed), # Specifies if an intercept term should be included
         "class_weight": Categorical([None, "balanced"], random_state=random_seed), # Controls importance of each class during training
         "tol": Continuous(1e-6, 1e-2, distribution="log-uniform", random_state=random_seed), # Convergence tolerance for stopping criteria
-        "max_iter": Integer(500, 2000, random_state=random_seed), # Maximum number of possible iterations for solver to converge
-        "warm_start": Categorical([True, False], random_state=random_seed) # Whether to make use of the previous solution as a starting point
+        "max_iter": Integer(500, 2000, random_state=random_seed) # Maximum number of possible iterations for solver to converge
     }
 
-    cv = StratifiedKFold(n_splits=3, shuffle=False) # Cross validation is set to 3 fold with each fold maintaining the same ratio of outcomes as the full dataset.
+    groups = train_df["Season"].to_numpy() # The season for each row in the training set is stored
+    cv = StratifiedGroupKFold(n_splits=4, shuffle=False) # Cross validation is set to 4 folds with each fold consisting of a whole season
+    cv_splits = list(cv.split(X_train, y_train, groups=groups)) # Splits the training set into equal folds and grouping by season
+
+    os.makedirs("data/results/logistic regression", exist_ok=True) # Checks if directory for output file exists and if not it creates it
+    outcome_labels = train_df["ResultEncoded"] # Captures outcome labels from training set
+    row_fold = np.full(len(X_train), -1, dtype=int) # Creates a numpy array of the same length as the training set with each index filled with a placeholder value of -1
+    fold_order = {} # An empty dictionary to store which season each fold represents is defined
+    for fold_idx, (train_idx, validation_idx) in enumerate(cv_splits, start=1): # Splits the training set into equal folds grouping by season and starts counting the folds from 1 instead of 0
+        seasons_in_fold = np.unique(groups[validation_idx]) # The seasons in the respective fold are captured
+        if len(seasons_in_fold) == 0: # Checks that each fold contains at least one season
+            raise ValueError("Each fold should contain at least one season.") # An error is printed if there is more than one season or no season in a fold
+        fold_order[fold_idx] = seasons_in_fold.min() # Earliest season for the respective fold is picked
+    sorted_folds = sorted(fold_order.items(), key=lambda item: item[1]) # Folds are sorted by season
+    ordered_folds = {} # An empty dictionary to store the mapping between the old fold id and the new fold id is defined
+    order = 1 # Order counter is defined to 1
+    for original_fold, season in sorted_folds: # For each sorted fold to season mapping
+        ordered_folds[original_fold] = order # Maps the original fold to the new fold
+        order += 1 # Increments order by 1
+
+    for fold, (train_idx, validation_idx) in enumerate(cv_splits, start=1): # Splits the training set into equal folds grouping by season and starts counting the folds from 1 instead of 0
+        row_fold[validation_idx] = ordered_folds[fold] # Overwrites the old fold with the new one based on the mapping in ordered_folds
+
+    pd.DataFrame({
+        "Row Number": np.arange(1, len(X_train) + 1), # Stores the row number starting from 1 up to N
+        "Fold": row_fold, # The fold number is stored
+        "Season": train_df["Season"].to_numpy(), # The season is stored
+        "Outcome": outcome_labels.to_numpy(), # The result is stored
+    }).to_csv("data/results/logistic regression/logistic_regression_cv_folds.csv", index=False) # Converts it to csv and appends it to existing csv or stores it in new csv
+    print("Folds saved to: data/results/logistic regression/logistic_regression_cv_folds.csv") # Prints confirmation that the folds have been stored
 
     best_model = None # Variable to store the best performing model is defined
     best_score = 0 # Variable to store the best achieved score is defined
@@ -83,8 +113,8 @@ def run_logistic_regression(data_path = "data/features/eng1_data_combined.csv"):
         ga_search = GASearchCV( # Genetic Algorithm Search is setup to find the best combination of parameters
             estimator = base_model, # The model which is being optimised
             param_grid = param_grid, # The parameter combinations to test
-            scoring = make_scorer(accuracy_score), # Custom scoring function is used to compute fitness based on model accuracy
-            cv = cv, # Previously defined StratifiedKFold cross validator
+            scoring = make_scorer(f1_score, average="macro"), # Custom scoring function is used to compute fitness based on model f1 score
+            cv = cv_splits, # Previously defined StratifiedGroupKFold cross validator grouped by season
             population_size = 25, # Number of individuals in each generation
             generations = 15, # Number of generations that the algorithm will evolve through
             n_jobs = -1, # All CPU cores are utilised
@@ -96,7 +126,7 @@ def run_logistic_regression(data_path = "data/features/eng1_data_combined.csv"):
             criteria = "max", # Scoring function will be maximised
         )
 
-        ga_search.fit(X_train_scaled, y_train) # Parameter tuning is performed on scaled data
+        ga_search.fit(X_train_scaled, y_train) # Parameter tuning is performed on scaled data using precomputed season-grouped folds
 
         print(f"Solver {solver_name} Complete.") # Prints confirmation message that genetic algorithm ran successfully
 
@@ -116,8 +146,8 @@ def run_logistic_regression(data_path = "data/features/eng1_data_combined.csv"):
 
     out = test_df.copy() # It stored a copy of the dataframe used for testing in out
     out["Predicted"] = preds # Add a predicted column to the dataframe
-    out.to_csv("data/results/logistic_regression_2023_predictions.csv", index = False) # Converts the final dataframe to csv and appends it to existing csv or stores it in new csv
-    print("Predictions saved to: data/results/logistic_regression_2023_predictions.csv") # Prints confirmation that the results have been stored
+    out.to_csv("data/results/logistic regression/logistic_regression_2023_predictions.csv", index = False) # Converts the final dataframe to csv and appends it to existing csv or stores it in new csv
+    print("Predictions saved to: data/results/logistic regression/logistic_regression_2023_predictions.csv") # Prints confirmation that the results have been stored
 
     return best_model, results # Returns the trained model and the respective results
 
