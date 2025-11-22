@@ -1,0 +1,7 @@
+Mapping,Count
+Pred Home Win → Actual Draw,30
+Pred Home Win → Actual Away Win,22
+Pred Draw → Actual Home Win,35
+Pred Draw → Actual Away Win,24
+Pred Away Win → Actual Home Win,27
+Pred Away Win → Actual Draw,28

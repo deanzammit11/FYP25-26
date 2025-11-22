@@ -29,3 +29,6 @@ def combine_season_files():
     combined = pd.concat(all_data, ignore_index=True) # The rows of each dataframe in all_data are appended maintaining the same order
     save_csv(combined, "data/processed/eng1_all_seasons.csv") # Combined csv is saved into specified directory
     return combined # The combined dataframe is returned
+
+if __name__ == "__main__":
+    combine_season_files()
