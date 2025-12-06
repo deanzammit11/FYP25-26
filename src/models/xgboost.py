@@ -27,7 +27,12 @@ def run_xgboost(data_path = "data/features/eng1_data_combined.csv"):
         "OddsDifference_HvA",
         "OddsDifference_HvD",
         "OddsDifference_AvD",
-        "HomeAdvantageIndex"
+        "HomeForm",
+        "AwayForm",
+        "HomeAdvantageIndex",
+        "HomeGeneralForm",
+        "AwayGeneralForm",
+        "GeneralFormDifference"
     ]
 
     X_train = train_df[features] # Features used for training
@@ -110,7 +115,7 @@ def run_xgboost(data_path = "data/features/eng1_data_combined.csv"):
 
     print("Genetic Algorithm Complete. Best Parameters:") # Prints confirmation message that genetic algorithm completed successfully
     print(ga_search.best_params_) # Best parameters found from the genetic algorithm are printed
-    print(f"Best Cross Validation Accuracy: {ga_search.best_score_:.4f}") # Best cross validation accuracy is printed
+    print(f"Best Cross Validation Accuracy: {ga_search.best_score_:.3f}") # Best cross validation accuracy is printed
 
     model = ga_search.best_estimator_ # Model trained using the best parameters is retrieved
     preds = model.predict(X_test) # Predicted outcomes are stored

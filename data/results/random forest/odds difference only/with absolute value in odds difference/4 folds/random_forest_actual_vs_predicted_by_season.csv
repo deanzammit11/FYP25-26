@@ -1,7 +1,7 @@
 Season,Outcome,Count,Source
-2023,Away Win,123,Actual
+2023,Away Win,122,Actual
 2023,Away Win,133,Predicted
 2023,Draw,82,Actual
-2023,Draw,90,Predicted
-2023,Home Win,175,Actual
-2023,Home Win,157,Predicted
+2023,Draw,100,Predicted
+2023,Home Win,174,Actual
+2023,Home Win,145,Predicted

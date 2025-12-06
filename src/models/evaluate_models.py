@@ -15,12 +15,14 @@ def evaluate_model(model_name, y_true, y_pred):
     print(f"\n{model_name} Performance:") # Prints the name of the model showing its performance
     for k, v in metrics.items(): # Loops through the metrics dictionary to display each metric
         if k != "Model": # Skips printing the name of the model only showing the metrics themselves since it was already printed seperately
-            print(f"  {k}: {v:.4f}") # Metric is printed correct to 4 decimal places
+            print(f"  {k}: {v:.3f}") # Metric is printed correct to 3 decimal places
     return metrics # Dictionary of metrics is returned
 
 def save_results(results, output_path="data/results/model_metrics.csv"):
     os.makedirs(os.path.dirname(output_path), exist_ok=True) # Checks if directory for output file exists and if not it creates it
     df = pd.DataFrame([results]) # Converts the metrics dictionary into a single row pandas dataframe
+    numeric_columns = df.select_dtypes(include="number").columns # The columns which have number as their dtype are picked
+    df[numeric_columns] = df[numeric_columns].round(3) # The numeric columns are rounded correcto to 3 decimal places
 
     try: # Tries to read the existing csv as a pandas dataframe and if it exists it appends the new row to the existing data
         existing = pd.read_csv(output_path)
