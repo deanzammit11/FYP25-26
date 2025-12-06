@@ -27,7 +27,12 @@ def run_random_forest(data_path = "data/features/eng1_data_combined.csv"):
         "OddsDifference_HvA",
         "OddsDifference_HvD",
         "OddsDifference_AvD",
-        "HomeAdvantageIndex"
+        "HomeForm",
+        "AwayForm",
+        "HomeAdvantageIndex",
+        "HomeGeneralForm",
+        "AwayGeneralForm",
+        "GeneralFormDifference"
     ]
 
     X_train = train_df[features] # Features used for training
@@ -128,7 +133,7 @@ def run_random_forest(data_path = "data/features/eng1_data_combined.csv"):
 
     print("Genetic Algorithm Complete. Best Parameters:")
     print(best_params)
-    print(f"Best Cross Validation Accuracy: {best_score:.4f}")
+    print(f"Best Cross Validation Accuracy: {best_score:.3f}")
 
     preds = best_model.predict(X_test) # Predicted outcomes are stored
 

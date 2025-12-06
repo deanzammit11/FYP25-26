@@ -28,7 +28,12 @@ def run_logistic_regression(data_path = "data/features/eng1_data_combined.csv"):
         "OddsDifference_HvA",
         "OddsDifference_HvD",
         "OddsDifference_AvD",
-        "HomeAdvantageIndex"
+        "HomeForm",
+        "AwayForm",
+        "HomeAdvantageIndex",
+        "HomeGeneralForm",
+        "AwayGeneralForm",
+        "GeneralFormDifference"
     ]
 
     X_train = train_df[features] # Features used for training
@@ -137,7 +142,7 @@ def run_logistic_regression(data_path = "data/features/eng1_data_combined.csv"):
 
     print("Genetic Algorithm Complete. Best Parameters:") # Prints confirmation message that genetic algorithm completed successfully
     print(best_params) # Best parameters found from the genetic algorithm are printed
-    print(f"Best Cross Validation Accuracy: {best_score:.4f}") # Best cross validation accuracy is printed
+    print(f"Best Cross Validation Accuracy: {best_score:.3f}") # Best cross validation accuracy is printed
 
     preds = best_model.predict(X_test_scaled) # Predicted outcomes are stored
 
