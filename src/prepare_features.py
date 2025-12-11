@@ -77,10 +77,23 @@ def prepare_features():
 
     df["GeneralFormDifference"] = df["HomeGeneralForm"] - df["AwayGeneralForm"] # Points scored by the away team in the last 5 matches are subtracted from the points scored by the home team in the last 5 matches
 
+    home_team_groups = df.groupby(["Season", "HomeTeam"]) # Rows are grouped by season and home team
+    previous_home_goals = home_team_groups["FullTimeHomeGoals"].shift() # The values of the goals scored at home are shifted one row downwards
+    df["AverageGoalsAtHome"] = (
+        previous_home_goals.cumsum() / home_team_groups.cumcount().replace(0, pd.NA) # The cumulative sum of the goals scored at home up to and excluding the current match is divded by the number of rows which have appeared in the group with zeros being replaced with NA since you cannot divide by 0
+    ).fillna(0) # Null values are replaced with 0 where the first match is always 0
+
+    away_team_groups = df.groupby(["Season", "AwayTeam"]) # Rows are grouped by season and away team
+    previous_away_goals = away_team_groups["FullTimeAwayGoals"].shift() # The values of the goals scored away from home are shifted one row downwards
+    df["AverageGoalsAtAway"] = (
+        previous_away_goals.cumsum() / away_team_groups.cumcount().replace(0, pd.NA) # The cumulative sum of the goals scored away from home up to and excluding the current match is divded by the number of rows which have appeared in the group with zeros being replaced with NA since you cannot divide by 0
+    ).fillna(0) # Null values are replaced with 0 where the first match is always 0
+
     form_cols = [ # Columns to store in form csv file are selected
         "Season", "Date", "HomeTeam", "AwayTeam", "ResultEncoded",
         "HomeForm", "AwayForm", "HomeAdvantageIndex",
-        "HomeGeneralForm", "AwayGeneralForm", "GeneralFormDifference"
+        "HomeGeneralForm", "AwayGeneralForm", "GeneralFormDifference",
+        "AverageGoalsAtHome", "AverageGoalsAtAway"
     ]
 
     df_form = df[form_cols].dropna() # Null values are removed
@@ -92,7 +105,8 @@ def prepare_features():
         "Bet365HomeWinOddsPercentage", "Bet365DrawOddsPercentage", "Bet365AwayWinOddsPercentage",
         "OddsDifference_HvA", "OddsDifference_HvD", "OddsDifference_AvD",
         "HomeForm", "AwayForm", "HomeAdvantageIndex",
-        "HomeGeneralForm", "AwayGeneralForm", "GeneralFormDifference"
+        "HomeGeneralForm", "AwayGeneralForm", "GeneralFormDifference",
+        "AverageGoalsAtHome", "AverageGoalsAtAway"
     ]
     df_combined = df[modelling_cols].dropna() # Null values are removed
     save_csv(df_combined, "data/features/eng1_data_combined.csv") # Csv without null values is saved into specified directory
