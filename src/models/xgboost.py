@@ -33,6 +33,8 @@ def run_xgboost(data_path = "data/features/eng1_data_combined.csv"):
         "HomeGeneralForm",
         "AwayGeneralForm",
         "GeneralFormDifference",
+        "HistoricalEncountersHome", 
+        "HistoricalEncountersAway",
         # "AverageGoalsAtHome",
         # "AverageGoalsAtAway"
     ]
