@@ -89,11 +89,37 @@ def prepare_features():
         previous_away_goals.cumsum() / away_team_groups.cumcount().replace(0, pd.NA) # The cumulative sum of the goals scored away from home up to and excluding the current match is divded by the number of rows which have appeared in the group with zeros being replaced with NA since you cannot divide by 0
     ).fillna(0) # Null values are replaced with 0 where the first match is always 0
 
+    home_records = pd.DataFrame({ # A data frame consisting of 5 columns to store the records for the home side is built
+        "Team": df["HomeTeam"], # Team name is the name of the home team
+        "Opponent": df["AwayTeam"], # Opponent is the name of the away team
+        "Points": df["HomePoints"], # Points is the number of points scored by the home team in that fixture
+        "MatchIndex": df.index, # The respective row number in the original dataset
+        "IsHome": True, # A boolean flag showing that the team played at home
+    })
+    away_records = pd.DataFrame({
+        "Team": df["AwayTeam"], # Team name is the name of the away team
+        "Opponent": df["HomeTeam"], # Opponent is the name of the home team
+        "Points": df["AwayPoints"], # Points is the number of points scored by the away team in that fixture
+        "MatchIndex": df.index, # The respective row number in the original dataset
+        "IsHome": False, # A boolean flag showing that the team played away from home
+    })
+
+    head_to_head = pd.concat([home_records, away_records], ignore_index=True) # The home and away records are concatenated into a single dataframe with the index being reset.
+    grouped_points = head_to_head.groupby(["Team", "Opponent"], sort=False)["Points"] # Each team, opponent pairing is grouped based on points while keeping the same order
+    head_to_head["HistoricalPoints"] = (grouped_points.cumsum() - head_to_head["Points"]).fillna(0) # Computes the total points scored by a team against an opponent before the current match
+
+    home_history = head_to_head[head_to_head["IsHome"]].set_index("MatchIndex")["HistoricalPoints"] # Selects the HistoricalPoints column for home records only and the index is replaced with the original index in df
+    away_history = head_to_head[~head_to_head["IsHome"]].set_index("MatchIndex")["HistoricalPoints"] # Selects the HistoricalPoints column for away records only and the index is replaced with the original index in df
+
+    df["HistoricalEncountersHome"] = home_history.reindex(df.index).fillna(0).astype(int) # Reindexes home_history to contain the full index of df with instances where there were no previous encounters for that home fixture being filled with 0
+    df["HistoricalEncountersAway"] = away_history.reindex(df.index).fillna(0).astype(int) # Reindexes away_history to contain the full index of df with instances where there were no previous encounters for that away fixture being filled with 0
+
     form_cols = [ # Columns to store in form csv file are selected
         "Season", "Date", "HomeTeam", "AwayTeam", "ResultEncoded",
         "HomeForm", "AwayForm", "HomeAdvantageIndex",
         "HomeGeneralForm", "AwayGeneralForm", "GeneralFormDifference",
-        "AverageGoalsAtHome", "AverageGoalsAtAway"
+        "AverageGoalsAtHome", "AverageGoalsAtAway",
+        "HistoricalEncountersHome", "HistoricalEncountersAway"
     ]
 
     df_form = df[form_cols].dropna() # Null values are removed
@@ -106,7 +132,8 @@ def prepare_features():
         "OddsDifference_HvA", "OddsDifference_HvD", "OddsDifference_AvD",
         "HomeForm", "AwayForm", "HomeAdvantageIndex",
         "HomeGeneralForm", "AwayGeneralForm", "GeneralFormDifference",
-        "AverageGoalsAtHome", "AverageGoalsAtAway"
+        "AverageGoalsAtHome", "AverageGoalsAtAway",
+        "HistoricalEncountersHome", "HistoricalEncountersAway"
     ]
     df_combined = df[modelling_cols].dropna() # Null values are removed
     save_csv(df_combined, "data/features/eng1_data_combined.csv") # Csv without null values is saved into specified directory
