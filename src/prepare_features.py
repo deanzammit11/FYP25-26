@@ -122,8 +122,161 @@ def prepare_features():
         "HistoricalEncountersHome", "HistoricalEncountersAway"
     ]
 
-    df_form = df[form_cols].dropna() # Null values are removed
+    df_form = df[form_cols].fillna(0) # Sets missing values to 0 since form cannot be calculated on first appearance
     save_csv(df_form, "data/features/eng1_data_form.csv") # Csv without null values is saved into the specified directory
+
+    # Ratings Features
+    season_to_fifa_version = {2019: 20, 2020: 21, 2021: 22, 2022: 23, 2023: 24} # Maps the season to the respective fifa version
+    season_team_name_map = { # Maps the team names from different datasets to each other by season
+        2019: {
+            "Liverpool": "Liverpool",
+            "Man City": "Manchester City",
+            "Man United": "Manchester United",
+            "Chelsea": "Chelsea",
+            "Leicester": "Leicester City",
+            "Tottenham": "Tottenham Hotspur",
+            "Wolves": "Wolverhampton Wanderers",
+            "Arsenal": "Arsenal",
+            "Sheffield United": "Sheffield United",
+            "Burnley": "Burnley",
+            "Southampton": "Southampton",
+            "Everton": "Everton",
+            "Newcastle": "Newcastle United",
+            "Crystal Palace": "Crystal Palace",
+            "Brighton": "Brighton & Hove Albion",
+            "West Ham": "West Ham United",
+            "Aston Villa": "Aston Villa",
+            "Bournemouth": "AFC Bournemouth",
+            "Watford": "Watford",
+            "Norwich": "Norwich City",
+        },
+        2020: {
+            "Liverpool": "Liverpool",
+            "Man City": "Manchester City",
+            "Man United": "Manchester United",
+            "Chelsea": "Chelsea",
+            "Leicester": "Leicester City",
+            "Tottenham": "Tottenham Hotspur",
+            "Wolves": "Wolverhampton Wanderers",
+            "Arsenal": "Arsenal",
+            "Sheffield United": "Sheffield United",
+            "Burnley": "Burnley",
+            "Southampton": "Southampton",
+            "Everton": "Everton",
+            "Newcastle": "Newcastle United",
+            "Crystal Palace": "Crystal Palace",
+            "Brighton": "Brighton & Hove Albion",
+            "West Ham": "West Ham United",
+            "Aston Villa": "Aston Villa",
+            "Fulham": "Fulham",
+            "Leeds": "Leeds United",
+            "West Brom": "West Bromwich Albion",
+        },
+        2021: {
+            "Liverpool": "Liverpool",
+            "Man City": "Manchester City",
+            "Man United": "Manchester United",
+            "Chelsea": "Chelsea",
+            "Leicester": "Leicester City",
+            "Tottenham": "Tottenham Hotspur",
+            "Wolves": "Wolverhampton Wanderers",
+            "Arsenal": "Arsenal",
+            "Watford": "Watford",
+            "Burnley": "Burnley",
+            "Southampton": "Southampton",
+            "Everton": "Everton",
+            "Newcastle": "Newcastle United",
+            "Crystal Palace": "Crystal Palace",
+            "Brighton": "Brighton & Hove Albion",
+            "West Ham": "West Ham United",
+            "Aston Villa": "Aston Villa",
+            "Brentford": "Brentford",
+            "Leeds": "Leeds United",
+            "Norwich": "Norwich City",
+        },
+        2022: {
+            "Liverpool": "Liverpool",
+            "Man City": "Manchester City",
+            "Man United": "Manchester United",
+            "Chelsea": "Chelsea",
+            "Leicester": "Leicester City",
+            "Tottenham": "Tottenham Hotspur",
+            "Wolves": "Wolverhampton Wanderers",
+            "Arsenal": "Arsenal",
+            "Nott'm Forest": "Nottingham Forest",
+            "Fulham": "Fulham",
+            "Southampton": "Southampton",
+            "Everton": "Everton",
+            "Newcastle": "Newcastle United",
+            "Crystal Palace": "Crystal Palace",
+            "Brighton": "Brighton & Hove Albion",
+            "West Ham": "West Ham United",
+            "Aston Villa": "Aston Villa",
+            "Brentford": "Brentford",
+            "Leeds": "Leeds United",
+            "Bournemouth": "AFC Bournemouth",
+        },
+        2023: {
+            "Liverpool": "Liverpool",
+            "Man City": "Manchester City",
+            "Man United": "Manchester United",
+            "Chelsea": "Chelsea",
+            "Luton": "Luton Town",
+            "Tottenham": "Tottenham Hotspur",
+            "Wolves": "Wolverhampton Wanderers",
+            "Arsenal": "Arsenal",
+            "Nott'm Forest": "Nottingham Forest",
+            "Fulham": "Fulham",
+            "Burnley": "Burnley",
+            "Everton": "Everton",
+            "Newcastle": "Newcastle United",
+            "Crystal Palace": "Crystal Palace",
+            "Brighton": "Brighton & Hove Albion",
+            "West Ham": "West Ham United",
+            "Aston Villa": "Aston Villa",
+            "Brentford": "Brentford",
+            "Sheffield United": "Sheffield United",
+            "Bournemouth": "AFC Bournemouth",
+        },
+    }
+
+    df["Season"] = pd.to_numeric(df["Season"], errors="coerce") # The values in the Season column are converted to numeric values with invalid values being null
+    df["FifaVersion"] = df["Season"].map(season_to_fifa_version) # The Season for each row in df is mapped to the respective fifa version
+
+    df["HomeTeamFifa"] = [season_team_name_map.get(season, {}).get(team, team) for team, season in zip(df["HomeTeam"], df["Season"])] # Each home team is paired with the respective season and the respective season is then found from the outer dictionary and from the inner dictionary the fifa team name is then returned for each pair in the form of a list
+    df["AwayTeamFifa"] = [season_team_name_map.get(season, {}).get(team, team) for team, season in zip(df["AwayTeam"], df["Season"])] # Each away team is paired with the respective season and the respective season is then found from the outer dictionary and from the inner dictionary the fifa team name is then returned for each pair in the form of a list
+
+    fifa = pd.read_csv("data/processed/fifa_20-24_teams_data.csv") # Fifa ratings csv file is loaded into a Dataframe
+    fifa["fifa_version"] = pd.to_numeric(fifa["fifa_version"], errors="coerce") # The values in the fifa_version column are converted to numeric values with invalid values being null
+    fifa = fifa[fifa["fifa_version"].isin(season_to_fifa_version.values())] # Dataframe is filtered using the previosly defined mapping
+    fifa["Season"] = fifa["fifa_version"].map({v: k for k, v in season_to_fifa_version.items()}) # Reverses the mapping in season_to_fifa_version dictionary and a new mapping stored in the newly added Season column is created from Fifa version to Season
+    fifa_ratings = fifa[["Season", "team_name", "overall", "attack", "midfield", "defence"]].copy() # The required columns are selected
+
+    home_fifa_ratings = fifa_ratings.rename(columns={ # Creates a dataframe for the home ratings and renames the columns appropriately
+        "team_name": "HomeTeamFifa",
+        "overall": "HomeFifaOverall",
+        "attack": "HomeFifaAttack",
+        "midfield": "HomeFifaMidfield",
+        "defence": "HomeFifaDefence",
+    })
+    away_fifa_ratings = fifa_ratings.rename(columns={ # Creates a dataframe for the away ratings and renames the columns appropriately
+        "team_name": "AwayTeamFifa",
+        "overall": "AwayFifaOverall",
+        "attack": "AwayFifaAttack",
+        "midfield": "AwayFifaMidfield",
+        "defence": "AwayFifaDefence",
+    })
+
+    df = df.merge(home_fifa_ratings, how="left", on=["Season", "HomeTeamFifa"]) # Performs a left join from df to home_fifa_ratings matching Season and HomeTeamFifa
+    df = df.merge(away_fifa_ratings, how="left", on=["Season", "AwayTeamFifa"]) # Performs a left join from df to away_fifa_ratings matching Season and AwayTeamFifa
+
+    ratings_cols = [ # Columns to store in form csv file are selected
+        "Season", "FifaVersion", "Date", "HomeTeam", "AwayTeam", "ResultEncoded",
+        "HomeFifaOverall", "HomeFifaAttack", "HomeFifaMidfield", "HomeFifaDefence",
+        "AwayFifaOverall", "AwayFifaAttack", "AwayFifaMidfield", "AwayFifaDefence",
+    ]
+    df_ratings = df[ratings_cols].dropna() # Null values are removed
+    save_csv(df_ratings, "data/features/eng1_data_ratings.csv") # Csv without null values is saved into the specified directory
 
     # Combined dataset
     modelling_cols = [
@@ -133,10 +286,12 @@ def prepare_features():
         "HomeForm", "AwayForm", "HomeAdvantageIndex",
         "HomeGeneralForm", "AwayGeneralForm", "GeneralFormDifference",
         "AverageGoalsAtHome", "AverageGoalsAtAway",
-        "HistoricalEncountersHome", "HistoricalEncountersAway"
+        "HistoricalEncountersHome", "HistoricalEncountersAway",
+        "HomeFifaOverall", "HomeFifaAttack", "HomeFifaMidfield", "HomeFifaDefence",
+        "AwayFifaOverall", "AwayFifaAttack", "AwayFifaMidfield", "AwayFifaDefence",
     ]
-    df_combined = df[modelling_cols].dropna() # Null values are removed
-    save_csv(df_combined, "data/features/eng1_data_combined.csv") # Csv without null values is saved into specified directory
+    df_combined = df[modelling_cols].fillna(0) # Sets missing values to 0 since form cannot be calculated on first appearance
+    save_csv(df_combined, "data/features/eng1_data_combined.csv") # Csv is saved into specified directory
 
 if __name__ == "__main__":
     prepare_features()

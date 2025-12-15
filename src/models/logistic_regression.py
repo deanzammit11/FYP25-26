@@ -34,10 +34,18 @@ def run_logistic_regression(data_path = "data/features/eng1_data_combined.csv"):
         "HomeGeneralForm",
         "AwayGeneralForm",
         "GeneralFormDifference",
+        # "AverageGoalsAtHome",
+        # "AverageGoalsAtAway",
         "HistoricalEncountersHome", 
         "HistoricalEncountersAway",
-        # "AverageGoalsAtHome",
-        # "AverageGoalsAtAway"
+        "HomeFifaOverall",
+        # "HomeFifaAttack",
+        # "HomeFifaMidfield",
+        # "HomeFifaDefence",
+        "AwayFifaOverall",
+        # "AwayFifaAttack",
+        # "AwayFifaMidfield",
+        # "AwayFifaDefence"
     ]
 
     X_train = train_df[features] # Features used for training
@@ -80,7 +88,7 @@ def run_logistic_regression(data_path = "data/features/eng1_data_combined.csv"):
     }
 
     groups = train_df["Season"].to_numpy() # The season for each row in the training set is stored
-    cv = StratifiedGroupKFold(n_splits=3, shuffle=False) # Cross validation is set to 4 folds with each fold consisting of a whole season
+    cv = StratifiedGroupKFold(n_splits=4, shuffle=False) # Cross validation is set to 4 folds with each fold consisting of a whole season
     cv_splits = list(cv.split(X_train, y_train, groups=groups)) # Splits the training set into equal folds and grouping by season
 
     os.makedirs("data/results/logistic regression", exist_ok=True) # Checks if directory for output file exists and if not it creates it
