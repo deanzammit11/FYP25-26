@@ -78,16 +78,26 @@ def prepare_features():
     df["GeneralFormDifference"] = df["HomeGeneralForm"] - df["AwayGeneralForm"] # Points scored by the away team in the last 5 matches are subtracted from the points scored by the home team in the last 5 matches
 
     home_team_groups = df.groupby(["Season", "HomeTeam"]) # Rows are grouped by season and home team
-    previous_home_goals = home_team_groups["FullTimeHomeGoals"].shift() # The values of the goals scored at home are shifted one row downwards
-    df["AverageGoalsAtHome"] = (
-        previous_home_goals.cumsum() / home_team_groups.cumcount().replace(0, pd.NA) # The cumulative sum of the goals scored at home up to and excluding the current match is divded by the number of rows which have appeared in the group with zeros being replaced with NA since you cannot divide by 0
+    previous_home_scored = home_team_groups["FullTimeHomeGoals"].shift() # The values of the goals scored at home are shifted one row downwards
+    df["AverageGoalsScoredAtHome"] = (
+        previous_home_scored.cumsum() / home_team_groups.cumcount().replace(0, pd.NA) # The cumulative sum of the goals scored at home up to and excluding the current match is divded by the number of rows which have appeared in the group with zeros being replaced with NA since you cannot divide by 0
     ).fillna(0) # Null values are replaced with 0 where the first match is always 0
 
+    previous_home_conceded = home_team_groups["FullTimeAwayGoals"].shift() # The values of the goals conceded at home are shifted one row downwards
+    df["AverageGoalsConcededAtHome"] = (
+        previous_home_conceded.cumsum() / home_team_groups.cumcount().replace(0, pd.NA) # The cumulative sum of the goals conceded at home up to and excluding the current match is divded by the number of rows which have appeared in the group with zeros being replaced with NA since you cannot divide by 0
+    ).fillna(0)
+
     away_team_groups = df.groupby(["Season", "AwayTeam"]) # Rows are grouped by season and away team
-    previous_away_goals = away_team_groups["FullTimeAwayGoals"].shift() # The values of the goals scored away from home are shifted one row downwards
-    df["AverageGoalsAtAway"] = (
-        previous_away_goals.cumsum() / away_team_groups.cumcount().replace(0, pd.NA) # The cumulative sum of the goals scored away from home up to and excluding the current match is divded by the number of rows which have appeared in the group with zeros being replaced with NA since you cannot divide by 0
+    previous_away_scored = away_team_groups["FullTimeAwayGoals"].shift() # The values of the goals scored away from home are shifted one row downwards
+    df["AverageGoalsScoredAtAway"] = (
+        previous_away_scored.cumsum() / away_team_groups.cumcount().replace(0, pd.NA) # The cumulative sum of the goals scored away from home up to and excluding the current match is divded by the number of rows which have appeared in the group with zeros being replaced with NA since you cannot divide by 0
     ).fillna(0) # Null values are replaced with 0 where the first match is always 0
+
+    previous_away_conceded = away_team_groups["FullTimeHomeGoals"].shift() # The values of the goals conceded away from home are shifted one row downwards
+    df["AverageGoalsConcededAtAway"] = (
+        previous_away_conceded.cumsum() / away_team_groups.cumcount().replace(0, pd.NA) # The cumulative sum of the goals conceded away from home up to and excluding the current match is divded by the number of rows which have appeared in the group with zeros being replaced with NA since you cannot divide by 0
+    ).fillna(0)
 
     home_records = pd.DataFrame({ # A data frame consisting of 5 columns to store the records for the home side is built
         "Team": df["HomeTeam"], # Team name is the name of the home team
@@ -118,7 +128,8 @@ def prepare_features():
         "Season", "Date", "HomeTeam", "AwayTeam", "ResultEncoded",
         "HomeForm", "AwayForm", "HomeAdvantageIndex",
         "HomeGeneralForm", "AwayGeneralForm", "GeneralFormDifference",
-        "AverageGoalsAtHome", "AverageGoalsAtAway",
+        "AverageGoalsScoredAtHome", "AverageGoalsScoredAtAway",
+        "AverageGoalsConcededAtHome", "AverageGoalsConcededAtAway",
         "HistoricalEncountersHome", "HistoricalEncountersAway"
     ]
 
@@ -285,7 +296,8 @@ def prepare_features():
         "OddsDifference_HvA", "OddsDifference_HvD", "OddsDifference_AvD",
         "HomeForm", "AwayForm", "HomeAdvantageIndex",
         "HomeGeneralForm", "AwayGeneralForm", "GeneralFormDifference",
-        "AverageGoalsAtHome", "AverageGoalsAtAway",
+        "AverageGoalsScoredAtHome", "AverageGoalsScoredAtAway",
+        "AverageGoalsConcededAtHome", "AverageGoalsConcededAtAway",
         "HistoricalEncountersHome", "HistoricalEncountersAway",
         "HomeFifaOverall", "HomeFifaAttack", "HomeFifaMidfield", "HomeFifaDefence",
         "AwayFifaOverall", "AwayFifaAttack", "AwayFifaMidfield", "AwayFifaDefence",
