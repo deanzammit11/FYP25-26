@@ -102,7 +102,7 @@ def prepare_features():
     previous_away_conceded = away_team_groups["FullTimeHomeGoals"].shift() # The values of the goals conceded away from home are shifted one row downwards
     df["AverageGoalsConcededAtAway"] = (
         previous_away_conceded.groupby([df["Season"], df["AwayTeam"]]).cumsum() / away_team_groups.cumcount().replace(0, pd.NA) # The cumulative sum of the goals conceded by the away team away from home up to and excluding the current match is divded by the number of rows which have appeared in the group with zeros being replaced with NA since you cannot divide by 0
-    ).fillna(0)
+    ).fillna(0) # Null values are replaced with 0 where the first match is always 0
 
     team_home_records = pd.DataFrame({ # A dataframe storing the season, date, team, goals scored and conceded and match index of the home team for each fixture is created
         "Season": df["Season"],
@@ -127,6 +127,22 @@ def prepare_features():
     team_groups = team_records.groupby(["Season", "Team"], sort=False) # All records are grouped by season and team
     team_records["TotalGoalsScored"] = team_groups["GoalsFor"].cumsum() - team_records["GoalsFor"] # The TotalGoalsScored excluding the current match are computed
     team_records["TotalGoalsConceded"] = team_groups["GoalsAgainst"].cumsum() - team_records["GoalsAgainst"] # The TotalGoalsConceded excluding the current match are computed
+    team_records["Outcome"] = "Draw" # Adds an Outcome column to the Dataframe and initialises each value to Draw
+    team_records.loc[team_records["GoalsFor"] > team_records["GoalsAgainst"], "Outcome"] = "Win" # If the GoalsFor are greater than GoalsAgainst for a row the Outcome is set to Win
+    team_records.loc[team_records["GoalsFor"] < team_records["GoalsAgainst"], "Outcome"] = "Loss" # If the GoalsFor are smaller than GoalsAgainst for a row the Outcome is set to Loss
+
+    win_mask = team_records["Outcome"].eq("Win") # When Outcome is Win win_mask is True else it is False
+    win_block = (~win_mask).groupby([team_records["Season"], team_records["Team"]]).cumsum() # For each Season and Team group a counter which is incremented everytime a non-win occurs is created
+    team_records["WinStreak"] = win_mask.groupby([team_records["Season"], team_records["Team"], win_block]).cumcount() + 1 # For each Season, Team and win_block group WinStreak is set to the cumulative count up to that point + 1
+    team_records["WinStreak"] = team_records["WinStreak"].where(win_mask, 0) # Where win_mask is False WinStreak is set to 0 cancelling out non-wins
+
+    loss_mask = team_records["Outcome"].eq("Loss") # When Outcome is Loss loss_mask is True else it is False
+    loss_block = (~loss_mask).groupby([team_records["Season"], team_records["Team"]]).cumsum() # For each Season and Team group a counter which is incremented everytime a non-loss occurs is created
+    team_records["LossStreak"] = loss_mask.groupby([team_records["Season"], team_records["Team"], loss_block]).cumcount() + 1 # For each Season, Team and loss_block group LossStreak is set to the cumulative count up to that point + 1
+    team_records["LossStreak"] = team_records["LossStreak"].where(loss_mask, 0) # Where loss_mask is False LossStreak is set to 0 cancelling out non-losses
+
+    team_records["WinStreakPrior"] = team_groups["WinStreak"].shift().fillna(0) # Each team's WinStreak value is shifted one game back with null values being assigned as zero
+    team_records["LossStreakPrior"] = team_groups["LossStreak"].shift().fillna(0) # Each team's LossStreak value is shifted one game back with null values being assigned as zero
     home_totals = team_records[team_records["IsHome"]].set_index("MatchIndex") # The rows were IsHome is true are stored and their index is set to the original row number
     away_totals = team_records[~team_records["IsHome"]].set_index("MatchIndex") # The rows were IsHome is false are stored and their index is set to the original row number
 
@@ -134,6 +150,10 @@ def prepare_features():
     df["TotalGoalsConcededHome"] = home_totals["TotalGoalsConceded"].reindex(df.index).fillna(0) # The TotalGoalsConceded are stored in df while reindexing to contain the full index of df with instances where there were no prior values for that home fixture being filled with 0
     df["TotalGoalsScoredAway"] = away_totals["TotalGoalsScored"].reindex(df.index).fillna(0) # The TotalGoalsScored are stored in df while reindexing to contain the full index of df with instances where there were no prior values for that away fixture being filled with 0
     df["TotalGoalsConcededAway"] = away_totals["TotalGoalsConceded"].reindex(df.index).fillna(0) # The TotalGoalsConceded are stored in df while reindexing to contain the full index of df with instances where there were no prior values for that away fixture being filled with 0
+    df["HomeWinStreak"] = home_totals["WinStreakPrior"].reindex(df.index).fillna(0) # The WinStreakPrior for the home side is stored in df while reindexing to contain the full index of df with instances where there were no prior values for that home fixture being filled with 0
+    df["HomeLossStreak"] = home_totals["LossStreakPrior"].reindex(df.index).fillna(0) # The LossStreakPrior for the home side is stored in df while reindexing to contain the full index of df with instances where there were no prior values for that home fixture being filled with 0
+    df["AwayWinStreak"] = away_totals["WinStreakPrior"].reindex(df.index).fillna(0) # The WinStreakPrior for the away side is stored in df while reindexing to contain the full index of df with instances where there were no prior values for that home fixture being filled with 0
+    df["AwayLossStreak"] = away_totals["LossStreakPrior"].reindex(df.index).fillna(0) # The LossStreakPrior for the away side is stored in df while reindexing to contain the full index of df with instances where there were no prior values for that home fixture being filled with 0
 
     home_records = pd.DataFrame({ # A data frame consisting of 5 columns to store the records for the home side is built
         "Team": df["HomeTeam"], # Team name is the name of the home team
@@ -157,8 +177,8 @@ def prepare_features():
     home_history = head_to_head[head_to_head["IsHome"]].set_index("MatchIndex")["HistoricalPoints"] # Selects the HistoricalPoints column for home records only and the index is replaced with the original index in df
     away_history = head_to_head[~head_to_head["IsHome"]].set_index("MatchIndex")["HistoricalPoints"] # Selects the HistoricalPoints column for away records only and the index is replaced with the original index in df
 
-    df["HistoricalEncountersHome"] = home_history.reindex(df.index).fillna(0).astype(int) # Reindexes home_history to contain the full index of df with instances where there were no previous encounters for that home fixture being filled with 0
-    df["HistoricalEncountersAway"] = away_history.reindex(df.index).fillna(0).astype(int) # Reindexes away_history to contain the full index of df with instances where there were no previous encounters for that away fixture being filled with 0
+    df["HistoricalEncountersHome"] = home_history.reindex(df.index).fillna(0) # Reindexes home_history to contain the full index of df with instances where there were no previous encounters for that home fixture being filled with 0
+    df["HistoricalEncountersAway"] = away_history.reindex(df.index).fillna(0) # Reindexes away_history to contain the full index of df with instances where there were no previous encounters for that away fixture being filled with 0
 
     form_cols = [ # Columns to store in form csv file are selected
         "Season", "Date", "HomeTeam", "AwayTeam", "ResultEncoded",
@@ -168,6 +188,8 @@ def prepare_features():
         "AverageGoalsConcededAtHome", "AverageGoalsConcededAtAway",
         "TotalGoalsScoredHome", "TotalGoalsScoredAway",
         "TotalGoalsConcededHome", "TotalGoalsConcededAway",
+        "HomeWinStreak", "AwayWinStreak", 
+        "HomeLossStreak", "AwayLossStreak",
         "HistoricalEncountersHome", "HistoricalEncountersAway"
     ]
 
@@ -338,6 +360,8 @@ def prepare_features():
         "AverageGoalsConcededAtHome", "AverageGoalsConcededAtAway",
         "TotalGoalsScoredHome", "TotalGoalsScoredAway",
         "TotalGoalsConcededHome", "TotalGoalsConcededAway",
+        "HomeWinStreak", "AwayWinStreak",
+        "HomeLossStreak", "AwayLossStreak",
         "HistoricalEncountersHome", "HistoricalEncountersAway",
         "HomeFifaOverall", "HomeFifaAttack", "HomeFifaMidfield", "HomeFifaDefence",
         "AwayFifaOverall", "AwayFifaAttack", "AwayFifaMidfield", "AwayFifaDefence",
