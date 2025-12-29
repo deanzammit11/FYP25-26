@@ -143,6 +143,15 @@ def prepare_features():
 
     team_records["WinStreakPrior"] = team_groups["WinStreak"].shift().fillna(0) # Each team's WinStreak value is shifted one game back with null values being assigned as zero
     team_records["LossStreakPrior"] = team_groups["LossStreak"].shift().fillna(0) # Each team's LossStreak value is shifted one game back with null values being assigned as zero
+    
+    team_records["TotalWins"] = team_records["Outcome"].eq("Win").astype(int).groupby([team_records["Season"], team_records["Team"]]).cumsum() # If the outcome in team_records is a Win 1 is returned 0 otherwise and the cumulative sum is calculated for each Season and Team group
+    team_records["TotalDraws"] = team_records["Outcome"].eq("Draw").astype(int).groupby([team_records["Season"], team_records["Team"]]).cumsum() # If the outcome in team_records is a Draw 1 is returned 0 otherwise and the cumulative sum is calculated for each Season and Team group
+    team_records["TotalLosses"] = team_records["Outcome"].eq("Loss").astype(int).groupby([team_records["Season"], team_records["Team"]]).cumsum() # If the outcome in team_records is a Loss 1 is returned 0 otherwise and the cumulative sum is calculated for each Season and Team group
+    
+    team_records["TotalWins"] = team_groups["TotalWins"].shift().fillna(0) # Each team's TotalWins value is shifted one game back with null values being assigned as zero
+    team_records["TotalDraws"] = team_groups["TotalDraws"].shift().fillna(0) # Each team's TotalDraws value is shifted one game back with null values being assigned as zero
+    team_records["TotalLosses"] = team_groups["TotalLosses"].shift().fillna(0) # Each team's TotalLosses value is shifted one game back with null values being assigned as zero
+    
     home_totals = team_records[team_records["IsHome"]].set_index("MatchIndex") # The rows were IsHome is true are stored and their index is set to the original row number
     away_totals = team_records[~team_records["IsHome"]].set_index("MatchIndex") # The rows were IsHome is false are stored and their index is set to the original row number
 
@@ -150,10 +159,17 @@ def prepare_features():
     df["TotalGoalsConcededHome"] = home_totals["TotalGoalsConceded"].reindex(df.index).fillna(0) # The TotalGoalsConceded are stored in df while reindexing to contain the full index of df with instances where there were no prior values for that home fixture being filled with 0
     df["TotalGoalsScoredAway"] = away_totals["TotalGoalsScored"].reindex(df.index).fillna(0) # The TotalGoalsScored are stored in df while reindexing to contain the full index of df with instances where there were no prior values for that away fixture being filled with 0
     df["TotalGoalsConcededAway"] = away_totals["TotalGoalsConceded"].reindex(df.index).fillna(0) # The TotalGoalsConceded are stored in df while reindexing to contain the full index of df with instances where there were no prior values for that away fixture being filled with 0
-    df["HomeWinStreak"] = home_totals["WinStreakPrior"].reindex(df.index).fillna(0) # The WinStreakPrior for the home side is stored in df while reindexing to contain the full index of df with instances where there were no prior values for that home fixture being filled with 0
-    df["HomeLossStreak"] = home_totals["LossStreakPrior"].reindex(df.index).fillna(0) # The LossStreakPrior for the home side is stored in df while reindexing to contain the full index of df with instances where there were no prior values for that home fixture being filled with 0
-    df["AwayWinStreak"] = away_totals["WinStreakPrior"].reindex(df.index).fillna(0) # The WinStreakPrior for the away side is stored in df while reindexing to contain the full index of df with instances where there were no prior values for that home fixture being filled with 0
-    df["AwayLossStreak"] = away_totals["LossStreakPrior"].reindex(df.index).fillna(0) # The LossStreakPrior for the away side is stored in df while reindexing to contain the full index of df with instances where there were no prior values for that home fixture being filled with 0
+    df["WinStreakHome"] = home_totals["WinStreakPrior"].reindex(df.index).fillna(0) # The WinStreakPrior for the home side is stored in df while reindexing to contain the full index of df with instances where there were no prior values for that home fixture being filled with 0
+    df["LossStreakHome"] = home_totals["LossStreakPrior"].reindex(df.index).fillna(0) # The LossStreakPrior for the home side is stored in df while reindexing to contain the full index of df with instances where there were no prior values for that home fixture being filled with 0
+    df["WinStreakAway"] = away_totals["WinStreakPrior"].reindex(df.index).fillna(0) # The WinStreakPrior for the away side is stored in df while reindexing to contain the full index of df with instances where there were no prior values for that home fixture being filled with 0
+    df["LossStreakAway"] = away_totals["LossStreakPrior"].reindex(df.index).fillna(0) # The LossStreakPrior for the away side is stored in df while reindexing to contain the full index of df with instances where there were no prior values for that home fixture being filled with 0
+    
+    df["TotalWinsHome"] = home_totals["TotalWins"].reindex(df.index).fillna(0) # The TotalWins for the home side is stored in df while reindexing to contain the full index of df with instances where there were no prior values for that home fixture being filled with 0
+    df["TotalDrawsHome"] = home_totals["TotalDraws"].reindex(df.index).fillna(0) # The TotalDraws for the home side is stored in df while reindexing to contain the full index of df with instances where there were no prior values for that home fixture being filled with 0
+    df["TotalLossesHome"] = home_totals["TotalLosses"].reindex(df.index).fillna(0) # The TotalLosses for the home side is stored in df while reindexing to contain the full index of df with instances where there were no prior values for that home fixture being filled with 0
+    df["TotalWinsAway"] = away_totals["TotalWins"].reindex(df.index).fillna(0) # The TotalWins for the away side is stored in df while reindexing to contain the full index of df with instances where there were no prior values for that away fixture being filled with 0
+    df["TotalDrawsAway"] = away_totals["TotalDraws"].reindex(df.index).fillna(0) # The TotalDraws for the away side is stored in df while reindexing to contain the full index of df with instances where there were no prior values for that away fixture being filled with 0
+    df["TotalLossesAway"] = away_totals["TotalLosses"].reindex(df.index).fillna(0) # The TotalLosses for the away side is stored in df while reindexing to contain the full index of df with instances where there were no prior values for that away fixture being filled with 0
 
     home_records = pd.DataFrame({ # A data frame consisting of 5 columns to store the records for the home side is built
         "Team": df["HomeTeam"], # Team name is the name of the home team
@@ -188,8 +204,11 @@ def prepare_features():
         "AverageGoalsConcededAtHome", "AverageGoalsConcededAtAway",
         "TotalGoalsScoredHome", "TotalGoalsScoredAway",
         "TotalGoalsConcededHome", "TotalGoalsConcededAway",
-        "HomeWinStreak", "AwayWinStreak", 
-        "HomeLossStreak", "AwayLossStreak",
+        "WinStreakHome", "WinStreakAway",
+        "LossStreakHome", "LossStreakAway",
+        "TotalWinsHome", "TotalWinsAway",
+        "TotalDrawsHome", "TotalDrawsAway",
+        "TotalLossesHome", "TotalLossesAway",
         "HistoricalEncountersHome", "HistoricalEncountersAway"
     ]
 
@@ -360,8 +379,11 @@ def prepare_features():
         "AverageGoalsConcededAtHome", "AverageGoalsConcededAtAway",
         "TotalGoalsScoredHome", "TotalGoalsScoredAway",
         "TotalGoalsConcededHome", "TotalGoalsConcededAway",
-        "HomeWinStreak", "AwayWinStreak",
-        "HomeLossStreak", "AwayLossStreak",
+        "WinStreakHome", "WinStreakAway",
+        "LossStreakHome", "LossStreakAway",
+        "TotalWinsHome", "TotalWinsAway",
+        "TotalDrawsHome", "TotalDrawsAway",
+        "TotalLossesHome", "TotalLossesAway",
         "HistoricalEncountersHome", "HistoricalEncountersAway",
         "HomeFifaOverall", "HomeFifaAttack", "HomeFifaMidfield", "HomeFifaDefence",
         "AwayFifaOverall", "AwayFifaAttack", "AwayFifaMidfield", "AwayFifaDefence",
