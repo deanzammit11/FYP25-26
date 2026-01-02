@@ -1,5 +1,6 @@
 import pandas as pd
 from src.utils import ensure_dirs, save_csv
+from pathlib import Path
 
 def prepare_features():
     ensure_dirs("data/features") # Checks if directory exists and if it does not it creates it
@@ -332,6 +333,7 @@ def prepare_features():
 
     df["Season"] = pd.to_numeric(df["Season"], errors="coerce") # The values in the Season column are converted to numeric values with invalid values being null
     df["FifaVersion"] = df["Season"].map(season_to_fifa_version) # The Season for each row in df is mapped to the respective fifa version
+    df["HFA"] = df["Season"].map({2019: 56.2, 2020: 33.4, 2021: 32.5, 2022: 45.4, 2023: 48.8}) # The HFA value is mapped to the respective season
 
     df["HomeTeamFifa"] = [season_team_name_map.get(season, {}).get(team, team) for team, season in zip(df["HomeTeam"], df["Season"])] # Each home team is paired with the respective season and the respective season is then found from the outer dictionary and from the inner dictionary the fifa team name is then returned for each pair in the form of a list
     df["AwayTeamFifa"] = [season_team_name_map.get(season, {}).get(team, team) for team, season in zip(df["AwayTeam"], df["Season"])] # Each away team is paired with the respective season and the respective season is then found from the outer dictionary and from the inner dictionary the fifa team name is then returned for each pair in the form of a list
@@ -360,12 +362,127 @@ def prepare_features():
     df = df.merge(home_fifa_ratings, how="left", on=["Season", "HomeTeamFifa"]) # Performs a left join from df to home_fifa_ratings matching Season and HomeTeamFifa
     df = df.merge(away_fifa_ratings, how="left", on=["Season", "AwayTeamFifa"]) # Performs a left join from df to away_fifa_ratings matching Season and AwayTeamFifa
 
+    elo_dir = Path("data/raw/Elo Ratings") # Stores the path which points to the directory where the Elo History of each club is stored
+    elo_frames = [] # An empty list which will later store the elo history in a dataframe for each club is initialised
+    club_name_map = { # The club names which do not match are mapped to each other
+        "Forest": "Nott'm Forest",
+    }
+    for path in elo_dir.glob("*.csv"): # For each csv file in the elo directory
+        elo_team = pd.read_csv(path) # The csv file is read
+        elo_team["From"] = pd.to_datetime(elo_team["From"], errors="coerce") # The From column is converted into datetime
+        elo_team["To"] = pd.to_datetime(elo_team["To"], errors="coerce") # The To column is converted into datetime
+        elo_team["Level"] = pd.to_numeric(elo_team["Level"], errors="coerce") # The Level column is converted into numeric
+        elo_team["Team"] = elo_team["Club"].replace(club_name_map) # Ensures that the team names match and if they do not match they are replaced using the club name mapping
+        elo_frames.append(elo_team[["Team", "Level", "Elo", "From", "To"]]) # The columns to keep are selected and are the elo history for that club is added to elo_frames
+
+    elo = pd.concat(elo_frames, ignore_index=True) # Each seperate club dataframe is concatenated to form a single dataframe and the index is reset
+    elo = elo.dropna(subset=["Team", "Elo", "From", "To"]).copy() # The rows where any of "Team", "Elo", "From", "To" columns is null are dropped and the new dataframe is copied
+    elo = elo.sort_values(["Team", "From"]) # Rows are first sorted by team name and they are then sorted by From Date
+
+    df["DateParsed"] = pd.to_datetime(df["Date"], dayfirst=True, errors="coerce") # The match Date column is converted into datetime
+
+    initial_elo_map = {} # An empty dictionary which will later store the mapping from club to the initial elo rating is initialised
+    season_2023 = df[df["Season"] == 2023] # The dataframe is filterted only storing row where the Season is 2023
+    if not season_2023.empty: # Checks if there are matches in the 2023 season if there are no matches the if statement is skipped
+        season_teams = pd.concat([
+            season_2023[["HomeTeam", "DateParsed"]].rename(columns={"HomeTeam": "Team"}), # HomeTeam and DateParsed columns are stored in a new dataframe with the HomeTeam column being renamed to Team
+            season_2023[["AwayTeam", "DateParsed"]].rename(columns={"AwayTeam": "Team"}), # AwayTeam and DateParsed columns are stored in a new dataframe with the AwayTeam column being renamed to Team
+        ], ignore_index=True) # The above 2 dataframes are concatenated with and resets the index with the resulting dataframe containing the appareance of each team in the 2023 season along with the match date
+        first_match_dates = season_teams.groupby("Team")["DateParsed"].min() # The dataframe is grouped by each team and the first match date in 2023 for each team is selected
+        for team, first_date in first_match_dates.items(): # For each team and respective date in the resulting series
+            team_elo = elo[elo["Team"] == team] # The elo dataframe is filtered and only the rows for the respective club are stored
+            if team_elo.empty or pd.isna(first_date): # If there is no Elo history or the first date is missing
+                continue # Jump to the next step in the for loop
+            prior_elo = team_elo[team_elo["To"] <= first_date] # Only the rows where the To is less than or equal to the date of the first match of the season are kept
+            if prior_elo.empty: # If there are no records before the date of the first match of the season
+                continue # Jump to the next step in the for loop
+            closest_idx = prior_elo["To"].idxmax() # The index of the row where the value of the To column is the largest/most recent date is returned
+            initial_elo_map[team] = prior_elo.loc[closest_idx, "Elo"] # The Elo rating for the row at the closest index stored in the dictionary under that team name
+
+    home_side = df[["HomeTeam", "Season", "DateParsed"]].rename(columns={"HomeTeam": "Team"}) # A temporary table to store the elo rating for the home side consisting of HomeTeam, Season and DateParsed columns with the HomeTeam column being renamed to Team is created
+    home_side["Elo"] = pd.NA # The Elo column is added and assigned nulls as a temporary value
+    home_2019_22 = home_side["Season"].between(2019, 2022) # The rows where the season is between 2019 and 2022 inclusive are stored
+    if home_2019_22.any(): # If there are matches which fall between the 2019-2022 seasons
+        home_side_2019_22 = home_side[home_2019_22 & home_side["DateParsed"].notna()] # The dataframe is filtered for rows which fall between the 2019-2022 seasons and the DateParsed is not null
+        for team, group in home_side_2019_22.groupby("Team"): # For each team and group containing all matches for that team
+            team_elo = elo[elo["Team"] == team] # The elo dataframe is filtered and only the rows for the respective club are stored
+            if team_elo.empty: # If there is no Elo history
+                continue # Jump to the next step in the for loop
+            group_sorted = group.drop(columns="Elo").sort_values("DateParsed") # The Elo column is dropped and rows are sorted by match date
+            team_elo_sorted = team_elo.sort_values("To") # Elo records are sorted by their end date
+            merged = pd.merge_asof(group_sorted, team_elo_sorted, left_on="DateParsed", right_on="To", direction="backward") # Compares DateParsed from group_sorted to to from team_elo_sorted and the largest/closest To value which is ≤ to the match date is picked and those 2 rows are merged
+            home_side.loc[group_sorted.index, "Elo"] = merged["Elo"].values # The Elo ratings of merged are assigned to home_side based on the matching index since group_sorted is a subset of home_side
+    home_2023 = home_side["Season"] == 2023 # The dataframe is filterted only storing row where the Season is 2023
+    if home_2023.any(): # If there are matches which fall under the 2023 season
+        home_side.loc[home_2023, "Elo"] = home_side.loc[home_2023, "Team"].map(initial_elo_map) # For the home side for every fixture falling under the 2023 season the initial Elo rating from initial_elo_map is looked up and that value is written into the Elo column setting the Elo rating for each fixture in 2023 to the initial elo rating
+
+    away_side = df[["AwayTeam", "Season", "DateParsed"]].rename(columns={"AwayTeam": "Team"}) # A temporary table to store the elo rating for the away side consisting of AwayTeam, Season and DateParsed columns with the AwayTeam column being renamed to Team is created
+    away_side["Elo"] = pd.NA # The Elo column is added and assigned nulls as a temporary value
+    away_2019_22 = away_side["Season"].between(2019, 2022) # The rows where the season is between 2019 and 2022 inclusive are stored
+    if away_2019_22.any(): # If there are matches which fall between the 2019-2022 seasons
+        away_side_2019_22 = away_side[away_2019_22 & away_side["DateParsed"].notna()] # The dataframe is filtered for rows which fall between the 2019-2022 seasons and the DateParsed is not null
+        for team, group in away_side_2019_22.groupby("Team"): # For each team and group containing all matches for that team
+            team_elo = elo[elo["Team"] == team] # The elo dataframe is filtered and only the rows for the respective club are stored
+            if team_elo.empty: # If there is no Elo history
+                continue # Jump to the next step in the for loop
+            group_sorted = group.drop(columns="Elo").sort_values("DateParsed") # The Elo column is dropped and rows are sorted by match date
+            team_elo_sorted = team_elo.sort_values("To") # Elo records are sorted by their end date
+            merged = pd.merge_asof(group_sorted, team_elo_sorted, left_on="DateParsed", right_on="To", direction="backward") # Compares DateParsed from group_sorted to to from team_elo_sorted and the largest/closest To value which is ≤ to the match date is picked and those 2 rows are merged
+            away_side.loc[group_sorted.index, "Elo"] = merged["Elo"].values # The Elo ratings of merged are assigned to away_side based on the matching index since group_sorted is a subset of away_side
+    away_2023 = away_side["Season"] == 2023 # The dataframe is filterted only storing row where the Season is 2023
+    if away_2023.any(): # If there are matches which fall under the 2023 season
+        away_side.loc[away_2023, "Elo"] = away_side.loc[away_2023, "Team"].map(initial_elo_map) # For the away side for every fixture falling under the 2023 season the initial Elo rating from initial_elo_map is looked up and that value is written into the Elo column setting the Elo rating for each fixture in 2023 to the initial elo rating
+
+    df["HomeElo"] = home_side["Elo"].values # The Elo ratings of the home side before each fixture with 2023 all set to initial ratings are added to the main dataframe
+    df["AwayElo"] = away_side["Elo"].values # The Elo ratings of the away side before each fixture with 2023 all set to initial ratings are added to the main dataframe
+
+    season_2023 = df[df["Season"] == 2023].sort_values(["DateParsed", "HomeTeam", "AwayTeam"]) # The main dataframe is filtered for matches falling under the 2023 season and then sorted by Match Date, Home Team and Away Team
+    if not season_2023.empty: # Checks if there are matches in the 2023 season if there are no matches the if statement is skipped
+        current_ratings = initial_elo_map.copy() # The elo ratings are initialised with the initial elo ratings
+        hfa_value = 48.8 # The Home Field Advantage value is set
+        k_factor = 20 # The constant which controls how fast the Elo changes is set
+        for idx, row in season_2023.iterrows(): # Iterates over each match in the 2023 season in chronological order
+            home_team = row["HomeTeam"] # The home team is set
+            away_team = row["AwayTeam"] # The away team is set
+            home_rating = current_ratings.get(home_team, pd.NA) # The home teams initial Elo rating is looked up and if it is not found it is set to null
+            away_rating = current_ratings.get(away_team, pd.NA) # The away teams initial Elo rating is looked up and if it is not found it is set to null
+            df.at[idx, "HomeElo"] = home_rating # The initial Elo rating for the home side before the match is stored in df
+            df.at[idx, "AwayElo"] = away_rating # The initial Elo rating for the away side before the match is stored in df
+            if pd.isna(home_rating) or pd.isna(away_rating): # If the initial elo rating for the home side or away side is null
+                continue # Jump to the next match
+            home_rating_adjusted = home_rating + hfa_value # The elo rating for the home side is adjusted to include the home field advantage
+            expected_home = 1 / (1 + 10 ** (-(home_rating_adjusted - away_rating) / 400)) # The home win probability is computed
+            result = row["FullTimeResult"] # The full time result is stored
+            if result == "H": # If the home side won
+                score_home = 1 # The score result is 1
+            elif result == "D": # If the home side drew
+                score_home = 0.5 # The score result is 0.5
+            else: # If the home side lost
+                score_home = 0 # The score result is 0
+            goal_margin = abs(row["FullTimeHomeGoals"] - row["FullTimeAwayGoals"]) # The goal difference is calculated
+            margin_factor = goal_margin ** 0.5 if goal_margin > 0 else 1 # The goal difference is adjusted to cater for extreme scorelines
+            delta_home = k_factor * (score_home - expected_home) * margin_factor # The elo change is calculated
+            current_ratings[home_team] = home_rating + delta_home # The new Elo rating for the home side is calculated
+            current_ratings[away_team] = away_rating - delta_home # The new elo rating for the away side is calculated
+
+    df["EloTierHome"] = 4 # Sets the Elo tier for the home side in all fixtures to 4
+    df.loc[df["HomeElo"] >= 1700, "EloTierHome"] = 3 # If the Elo rating for the home side before that fixture is greater than or equal to 1700 the tier is set to 3
+    df.loc[df["HomeElo"] >= 1800, "EloTierHome"] = 2 # If the Elo rating for the home side before that fixture is greater than or equal to 1800 the tier is set to 2
+    df.loc[df["HomeElo"] >= 1900, "EloTierHome"] = 1 # If the Elo rating for the home side before that fixture is greater than or equal to 1900 the tier is set to 1
+    df["EloTierAway"] = 4 # Sets the Elo tier for the away side in all fixtures to 4
+    df.loc[df["AwayElo"] >= 1700, "EloTierAway"] = 3 # If the Elo rating for the away side before that fixture is greater than or equal to 1700 the tier is set to 3
+    df.loc[df["AwayElo"] >= 1800, "EloTierAway"] = 2 # If the Elo rating for the away side before that fixture is greater than or equal to 1800 the tier is set to 2
+    df.loc[df["AwayElo"] >= 1900, "EloTierAway"] = 1 # If the Elo rating for the away side before that fixture is greater than or equal to 1900 the tier is set to 1
+
     ratings_cols = [ # Columns to store in form csv file are selected
         "Season", "FifaVersion", "Date", "HomeTeam", "AwayTeam", "ResultEncoded",
         "HomeFifaOverall", "HomeFifaAttack", "HomeFifaMidfield", "HomeFifaDefence",
         "AwayFifaOverall", "AwayFifaAttack", "AwayFifaMidfield", "AwayFifaDefence",
+        "HFA", "HomeElo", "AwayElo", 
+        "EloTierHome", "EloTierAway",
     ]
-    df_ratings = df[ratings_cols].dropna() # Null values are removed
+
+    df_ratings = df[ratings_cols].fillna(0) # Null values are replaced with 0
     save_csv(df_ratings, "data/features/eng1_data_ratings.csv") # Csv without null values is saved into the specified directory
 
     # Combined dataset
@@ -387,6 +504,8 @@ def prepare_features():
         "HistoricalEncountersHome", "HistoricalEncountersAway",
         "HomeFifaOverall", "HomeFifaAttack", "HomeFifaMidfield", "HomeFifaDefence",
         "AwayFifaOverall", "AwayFifaAttack", "AwayFifaMidfield", "AwayFifaDefence",
+        "HFA", "HomeElo", "AwayElo",
+        "EloTierHome", "EloTierAway",
     ]
     df_combined = df[modelling_cols].fillna(0) # Sets missing values to 0 since form cannot be calculated on first appearance
     save_csv(df_combined, "data/features/eng1_data_combined.csv") # Csv is saved into specified directory
