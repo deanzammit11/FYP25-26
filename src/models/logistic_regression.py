@@ -61,7 +61,12 @@ def run_logistic_regression(data_path = "data/features/eng1_data_combined.csv"):
         "AwayFifaOverall",
         # "AwayFifaAttack",
         # "AwayFifaMidfield",
-        # "AwayFifaDefence"
+        # "AwayFifaDefence",
+        # "HFA",
+        # "HomeElo", 
+        # "AwayElo",
+        # "EloTierHome",
+        # "EloTierAway",
     ]
 
     X_train = train_df[features] # Features used for training
