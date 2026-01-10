@@ -1,1 +1,4 @@
 Model,Accuracy,Precision_Home,Recall_Home,F1_Home,Support_Home,Precision_Draw,Recall_Draw,F1_Draw,Support_Draw,Precision_Away,Recall_Away,F1_Away,Support_Away,Precision_Macro,Recall_Macro,F1_Macro,Precision_Weighted,Recall_Weighted,F1_Weighted
+Logistic Regression,0.55,0.657,0.657,0.657,175,0.276,0.098,0.144,82,0.489,0.699,0.575,123,0.474,0.485,0.459,0.52,0.55,0.52
+XGBoost,0.561,0.632,0.737,0.681,175,0.238,0.061,0.097,82,0.51,0.642,0.568,123,0.46,0.48,0.449,0.508,0.561,0.518
+Random Forest,0.561,0.694,0.634,0.663,175,0.274,0.207,0.236,82,0.538,0.691,0.605,123,0.502,0.511,0.501,0.553,0.561,0.552
