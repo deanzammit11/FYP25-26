@@ -10,6 +10,7 @@ from sklearn.pipeline import Pipeline
 from sklearn_genetic import GASearchCV, GAFeatureSelectionCV
 from sklearn_genetic.space import Categorical, Continuous, Integer
 from src.models.evaluate_models import evaluate_model, save_results
+from src.models.sequential_elo import predict_2023_with_elo_updates
 
 def run_logistic_regression(data_path = "data/features/eng1_data_combined.csv"):
     random_seed = 0 # Seed value is set to 0
@@ -229,7 +230,7 @@ def run_logistic_regression(data_path = "data/features/eng1_data_combined.csv"):
     print(best_params) # Best parameters found from the genetic algorithm are printed
     print(f"Best Cross Validation F1: {best_score:.3f}") # Best cross validation F1 score is printed
 
-    preds = best_model.predict(X_test_selected) # Predicted outcomes are stored
+    preds, test_df = predict_2023_with_elo_updates(model=best_model, test_df=test_df, feature_columns=selected_features) # Predicted outcomes are generated with Elo updated after each predicted fixture
 
     results = evaluate_model("Logistic Regression", y_test, preds) # Model performance is evaluated and stored in results
     save_results(results) # Model results are saved

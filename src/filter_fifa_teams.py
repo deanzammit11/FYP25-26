@@ -6,7 +6,7 @@ output_path = "data/processed/fifa_20-24_teams_data.csv" # Stores the path where
 target_league_id = 13 # Stores the League id for the Premier League
 target_versions = {20, 21, 22, 23, 24} # Stores the fifa versions to filter for
 
-def filter_fifa_teams(source_path: str = raw_fifa_teams_path, output_path: str = output_path,):
+def filter_fifa_teams(source_path: str = raw_fifa_teams_path, output_path: str = output_path):
     ensure_dirs("data/processed") # Checks if directory exists and if it does not it creates it
 
     df = pd.read_csv(source_path) # Fifa ratings csv file is loaded into a Dataframe

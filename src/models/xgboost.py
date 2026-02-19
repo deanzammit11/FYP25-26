@@ -8,6 +8,7 @@ from sklearn.metrics import make_scorer, f1_score
 from sklearn_genetic import GASearchCV, GAFeatureSelectionCV
 from sklearn_genetic.space import Categorical, Continuous, Integer
 from src.models.evaluate_models import evaluate_model, save_results
+from src.models.sequential_elo import predict_2023_with_elo_updates
 
 def run_xgboost(data_path = "data/features/eng1_data_combined.csv"):
     random_seed = 0 # Seed value is set to 0
@@ -197,8 +198,7 @@ def run_xgboost(data_path = "data/features/eng1_data_combined.csv"):
     print(f"Best Cross Validation F1: {ga_search.best_score_:.3f}") # Best cross validation F1 score is printed
 
     model = ga_search.best_estimator_ # Model trained using the best parameters is retrieved
-    preds = model.predict(X_test_selected) # Predicted outcomes are stored
-    preds = preds - 1 # Subtracting 1 to convert predicted outcomes back to the original format
+    preds, test_df = predict_2023_with_elo_updates(model=model, test_df=test_df, feature_columns=selected_features, prediction_to_result=lambda pred: int(pred) - 1) # Predicted outcomes are generated with Elo updated after each predicted fixture
     y_test = y_test - 1 # Subtracting 1 to convert testing outcomes back to the original format
 
     results = evaluate_model("XGBoost", y_test, preds) # Model performance is evaluated and stored in results
