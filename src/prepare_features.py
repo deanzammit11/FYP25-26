@@ -1,6 +1,6 @@
 import pandas as pd
 from src.utils import ensure_dirs, save_csv
-from src.models.sequential_elo import add_elo_features
+from src.calculate_elo import add_elo_features
 
 def prepare_features():
     ensure_dirs("data/features") # Checks if directory exists and if it does not it creates it

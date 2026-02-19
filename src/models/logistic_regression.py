@@ -10,7 +10,7 @@ from sklearn.pipeline import Pipeline
 from sklearn_genetic import GASearchCV, GAFeatureSelectionCV
 from sklearn_genetic.space import Categorical, Continuous, Integer
 from src.models.evaluate_models import evaluate_model, save_results
-from src.models.sequential_elo import predict_2023_with_elo_updates
+from src.calculate_elo import predict_2023_with_elo_updates
 
 def run_logistic_regression(data_path = "data/features/eng1_data_combined.csv"):
     random_seed = 0 # Seed value is set to 0
