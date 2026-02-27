@@ -107,7 +107,9 @@ def season_simulation():
             ).drop(columns=["HeadToHeadPoints"]) # The head to head column is removed after group is sorted based on tie break points
             ordered_groups.append(group) # The final ordered group after the tie break is added
 
-        standings = pd.concat(ordered_groups, ignore_index=True)[["Club", "Matches Played", "Wins", "Draws", "Losses", "Points"]] # All points groups are concatenated into one final standings dataframe resetting the index and also reordering columns to match the premier league table format
+        standings = pd.concat(ordered_groups, ignore_index=True) # All points groups are concatenated into one final standings dataframe resetting the index
+        standings.insert(0, "Position", range(1, len(standings) + 1)) # A positions column showing the postion of the club is added as the first column
+        standings = standings[["Position", "Club", "Matches Played", "Wins", "Draws", "Losses", "Points"]] # Columns are reordered to match the league table format
 
         model_name = extract_model_name_from_filename(str(prediction_file)) # The model name is extracted from the predictions file name after it is converted to a string and is then saved
         output_image = model_dir / f"{model_name}_2023_league_table.png" # A path inside the model directory with the league table file name is created for the output image
@@ -129,7 +131,7 @@ def season_simulation():
         table_plot.scale(1, 1.35) # Table width is set to 1 and table height is set to 1.35
 
         for row_idx in range(1, len(standings) + 1): # For each row in the standings table excluding the first row containing the headers
-            table_plot[(row_idx, 0)].get_text().set_ha("left") # Left aligns the club name under the club column
+            table_plot[(row_idx, 1)].get_text().set_ha("left") # Left aligns the club name under the club column
         for col_idx in range(len(standings.columns)): # For each column in the standings table
             table_plot[(0, col_idx)].set_text_props(weight="bold") # Bold formatting is set to the header
 
