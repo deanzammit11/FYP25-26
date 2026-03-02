@@ -377,6 +377,7 @@ def prepare_features():
     # Combined dataset
     modelling_cols = [
         "Season", "Date", "HomeTeam", "AwayTeam", "ResultEncoded",
+        "Bet365HomeWinOdds", "Bet365DrawOdds", "Bet365AwayWinOdds",
         "Bet365HomeWinOddsPercentage", "Bet365DrawOddsPercentage", "Bet365AwayWinOddsPercentage",
         "OddsDifference_HvA", "OddsDifference_HvD", "OddsDifference_AvD",
         "HomeForm", "AwayForm", "HomeAdvantageIndex",

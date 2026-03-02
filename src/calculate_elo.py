@@ -196,10 +196,17 @@ def predict_2023_with_elo_updates(model, test_df, feature_columns, prediction_to
     season_sorted = test_df.sort_values(["DateParsed", "HomeTeam", "AwayTeam"]) # Rows are first sorted in chronological order by date and they are then sorted by HomeTeam and AwayTeam
     season_sorted["DateKey"] = season_sorted["DateParsed"].dt.normalize() # Each time in DateParsed is set to midnight for consistency
     predictions_by_index = {} # An empty dictionary which will later store the predicted class for each row index is initialised
+    probabilities_by_index = {} # An empty dictionary which will later store the predicted probabilities for each row index is initialised
     current_ratings = {} # An empty dictionary which will store the latest Elo rating for each team is initialised
     if season_sorted["HFA"].isna().all(): # If all HFA values are missing for 2023 fixtures
         raise ValueError("Missing HFA values for all 2023 fixtures in test_df") # A value error is raised
     current_hfa = season_sorted["HFA"].dropna().iloc[0] # The initial HFA value is set to the value of the first 2023 fixture
+
+    model_classes = model.classes_ # The possible outcome labels are stored in an array
+    class_to_result = {} # An empty dictionary which will later store the class labels mapped to -1,0,1
+    for raw_class in model_classes: # For each unconverted class label
+        mapped_result = prediction_to_result(raw_class) if prediction_to_result else int(raw_class) # If the class label needs to be converted the class label is converted else it is type casted to integer
+        class_to_result[int(raw_class)] = int(mapped_result) # The mapping is stored in the dictionary
 
     championship_2023 = pd.read_csv("data/raw/Championship 2019-2023.csv") # The championship dataframe is read from the specified directory
     championship_2023 = championship_2023[["Season", "Date", "HomeTeam", "AwayTeam", "FT Result"]].copy() # Only the columns needed for HFA updates are kept
@@ -260,6 +267,16 @@ def predict_2023_with_elo_updates(model, test_df, feature_columns, prediction_to
             test_df.at[idx, "HFA"] = hfa_value # The HFA value before the fixture is stored at the fixture index of test_df
 
             row_features = test_df.loc[[idx], feature_columns] # The features of the fixture row being predicted are stored in a dataframe only containing the features of that single row
+            if not hasattr(model, "predict_proba"): # If the model does not support probability estimates
+                raise ValueError(f"Model {type(model).__name__} does not support predict_proba.") # A value error is raised
+            probability_row = model.predict_proba(row_features)[0] # The class probabilities for that fixture are generated
+            if model_classes is None: # If class labels are missing
+                raise ValueError("Model supports predict_proba but fitted class labels (classes_) are missing.") # A value error is raised
+            probability_map = {-1: 0.0, 0: 0.0, 1: 0.0} # A temporaty dictionary which will later the store class probabilities for the match is initialised with a probability of 0 for each class
+            for raw_class, class_probability in zip(model_classes, probability_row): # For each class and class probability in the class and probability pairs
+                encoded_result = class_to_result[int(raw_class)] # The model label is mapped to the target label
+                probability_map[encoded_result] = float(class_probability) # The probability for that class is stored in the probability_map dictionary
+            probabilities_by_index[idx] = probability_map # The class probabilities for that row index are stored
             raw_prediction = model.predict(row_features)[0] # The model is run on that one fixture and a prediction is generated
             predicted_result = prediction_to_result(raw_prediction) if prediction_to_result else int(raw_prediction) # The raw prediction is converted into the expected encoded result value
             predictions_by_index[idx] = predicted_result # The predicted result is stored under the row index
@@ -321,4 +338,9 @@ def predict_2023_with_elo_updates(model, test_df, feature_columns, prediction_to
         current_hfa += day_delta_sum * 0.075 # The dynamic HFA value is updated at the end of the day using the daily home delta sum
 
     predictions = pd.Series(predictions_by_index).reindex(test_df.index) # A series is built from the predictions_by_index dictionary and is reindexed so that row indexes match the row index of test_df
+    if probabilities_by_index: # If probabilities were computed
+        probabilities = pd.DataFrame.from_dict(probabilities_by_index, orient="index").reindex(test_df.index) # The dictionary is converted into a dataframe with the outer keys becoming the dataframe index and the inner keys becoming the dataframe columns the rows are then reindexed to match the index of the test dataframe
+        test_df["ProbHome"] = probabilities[1].to_numpy() # The home win probability is stored
+        test_df["ProbDraw"] = probabilities[0].to_numpy() # The draw probability is stored
+        test_df["ProbAway"] = probabilities[-1].to_numpy() # The away win probability is stored
     return predictions.to_numpy(), test_df.drop(columns=["DateParsed"]) # The predictions array and test_df without the DateParsed column are returned
