@@ -96,6 +96,44 @@ def add_elo_features(df, k_factor=20): # Adds Elo ratings and sets the intial el
 
     df["HomeElo"] = home_side["Elo"].values # The Elo ratings of the home side before each fixture with 2023 all set to initial ratings are added to the main dataframe
     df["AwayElo"] = away_side["Elo"].values # The Elo ratings of the away side before each fixture with 2023 all set to initial ratings are added to the main dataframe
+    margin_training_df = pd.read_csv("data/processed/eng1_all_seasons.csv") # The combined seasons dataset is read from the specified direcotory
+    margin_training_df["Season"] = pd.to_numeric(margin_training_df["Season"], errors="coerce") # The Season column is converted to numeric
+    margin_training_df = margin_training_df[margin_training_df["Season"] < 2023].copy() # Only rows where the season is less than 2023 are kept
+    margin_data = margin_training_df[["HomeTeam", "AwayTeam", "FullTimeHomeGoals", "FullTimeAwayGoals"]].copy() # Only columns needed for goal margin are kept
+    margin_data["FullTimeHomeGoals"] = pd.to_numeric(margin_data["FullTimeHomeGoals"], errors="coerce") # The Home goals column is converted to numeric
+    margin_data["FullTimeAwayGoals"] = pd.to_numeric(margin_data["FullTimeAwayGoals"], errors="coerce") # The Away goals column is converted to numeric
+    margin_data = margin_data.dropna(subset=["HomeTeam", "AwayTeam", "FullTimeHomeGoals", "FullTimeAwayGoals"]) # Rows with missing team names or goals are dropped
+    margin_data["Margin"] = (margin_data["FullTimeHomeGoals"] - margin_data["FullTimeAwayGoals"]).abs().astype(int) # The absolute score margin is computed and stored as an integer in a new Margin column
+    if margin_data.empty: # If there are no historical matches
+        raise ValueError("No valid training scoreline history found to build head to head margins.") # A value error is raised
+    margin_counts = margin_data.groupby(["HomeTeam", "AwayTeam", "Margin"]).size().reset_index(name="Count") # Rows are grouped by home team, away team and margin and the number of matches per group are counted and the index is then reset producing a new Count column
+    margin_counts = margin_counts.sort_values(["HomeTeam", "AwayTeam", "Count", "Margin"], ascending=[True, True, False, True]) # Rows are first sorted by home team in alphabetical order then by away team in alphabetical order then by the most frequent margin and finally by the smallest margin
+    most_common_margin = margin_counts.drop_duplicates(subset=["HomeTeam", "AwayTeam"], keep="first") # The most common margin row is kept for each head to head pair with the smallest margin being kept if there is a tie
+    directed_margin_lookup = {(row["HomeTeam"], row["AwayTeam"]): float(row["Margin"]) for _, row in most_common_margin.iterrows()} # For each row in most_common_margin a dictionary entry is built in the format (HomeTeam,AwayTeam): Margin and stored in a dictionary
+    default_margin = float(margin_data["Margin"].mode().iloc[0]) # The most frequent margin in the data is saved as a float with the smallest margin being taken if there is a tie
+    non_draw_margins = margin_data[margin_data["Margin"] >= 1].copy() # Only margins which are not a draw margin are saved
+    if non_draw_margins.empty: # If there are no non draw margins
+        raise ValueError("No non draw training matches found to build margin probabilities.") # A value error is raised
+    default_non_draw_margin = float(non_draw_margins["Margin"].mode().iloc[0]) # The most frequent non draw margin is saved as a float with the smallest margin being taken if there is a tie
+    margin_probability_table = non_draw_margins["Margin"].value_counts(normalize=True) # The number of appearances of each unique margin is counted and divided by the total number of times where the margin was not 0
+    margin_probability_lookup = {float(margin): float(probability) for margin, probability in margin_probability_table.items()} # For each margin a dictionary entry is built in the format margin: probability and stored in a dictionary as a float
+    default_p_margin = float(margin_probability_table.min()) # Unseen margins are set to the least common margin
+    normalization_numerator = sum((margin ** 0.5) * probability for margin, probability in margin_probability_lookup.items()) # For each margin and respective probability sqrt(j) * p_margin(j) is calculated and all the sum is then calculated
+    if normalization_numerator <= 0: # If the numerator is invalid
+        raise ValueError("Invalid numerator computed from margin probabilities.") # A value error is raised
+    estimated_margins = [] # A list which will store the estimated margin for each fixture row is initialised
+    p_margin_values = [] # A list which will store the p_margin value for each fixture row is initialised
+    for home_team, away_team in zip(df["HomeTeam"], df["AwayTeam"]): # For each team pair in each fixture in the dataframe
+        margin_value = directed_margin_lookup.get((home_team, away_team), default_margin) # The most common margin for the team pair is looked up and if it is not found the most common margin is used
+        if pd.isna(margin_value): # If margin is found but is NA
+            margin_value = default_margin # Most common margin is assigned
+        margin_value = float(margin_value) # Margin is saved as a float
+        if margin_value < 0: # If the margin is negative
+            raise ValueError(f"Negative estimated margin for fixture {home_team} vs {away_team}: {margin_value}") # A value error is raised
+        estimated_margins.append(margin_value) # The estimated margin is appended to the list
+        p_margin_values.append(float(margin_probability_lookup.get(margin_value, default_p_margin))) # The probability of the margin is looked up and if it is found it is appended and if it is not found the least common margin probability is appended
+    df["EstimatedMargin"] = estimated_margins # Estimated margin is added to the dataframe
+    df["PMargin"] = p_margin_values # Margin probability is added to the dataframe
 
     dynamic_hfa = 66.7 # The initial dynamic HFA value is set
     day_hfa_map = {} # A dictionary mapping each date to the HFA value used at the start of that day is initialised
@@ -130,10 +168,33 @@ def add_elo_features(df, k_factor=20): # Adds Elo ratings and sets the intial el
                 score_home = 0 # The score result is 0
             home_rating_adjusted = home_rating + dynamic_hfa # The elo rating for the home side is adjusted to include the home field advantage
             expected_home = 1 / (1 + 10 ** (-(home_rating_adjusted - away_rating) / 400)) # The home win probability is computed
-            delta_home = k_factor * (score_home - expected_home) # The Elo change for the home side is calculated
+            if score_home == 1: # If the home side won
+                p_1x2 = expected_home # Probability of result is equal to the probability of home side win
+            elif score_home == 0: # If the home side lost
+                p_1x2 = 1 - expected_home # Probability of result is equal to the probability of 1 - home side win
+            else: # If the home side drew
+                p_1x2 = 1.0 # The probability of result is set to a neutral value
+            if score_home == 0.5: # If the home side drew
+                s_norm = 1.0 # The normalisation term S is set to a neutral value
+            else: # If the home side won or lost
+                s_norm = normalization_numerator / max(float(p_1x2), 1e-12) # The normalisation term S is computed
+            delta_elo_1x2 = k_factor * (score_home - expected_home) # The basic Elo change for the home side is calculated
+            if score_home == 0.5: # If the home side drew
+                delta_home = delta_elo_1x2 # The basic elo change is kept
+            else: # If the home side won or lost
+                margin_value = directed_margin_lookup.get((home_team, away_team), default_margin) # The most common margin for the team pair is looked up and if it is not found the most common margin is used
+                if pd.isna(margin_value): #  If margin is found but is NA
+                    margin_value = default_margin # Most common margin is assigned
+                margin_value = float(margin_value) # Margin is saved as a float
+                if margin_value < 0: # If the margin is negative
+                    raise ValueError(f"Negative estimated margin for fixture {home_team} vs {away_team}: {margin_value}") # A value error is raised
+                if margin_value < 1: # If the margin is less than 1
+                    margin_value = default_non_draw_margin # The most common non draw margin is assigned
+                delta_elo_goal = delta_elo_1x2 / max(float(s_norm), 1e-12) # Basic elo change is converted to a one goal equivalent with the denominator being 1e-12 if it is too small to prevent division by 0
+                delta_home = delta_elo_goal * (margin_value ** 0.5) # Final elo change is calculated by multiplying by the square root of the actual margin
             elo_ratings[home_team] = home_rating + delta_home # The new Elo rating for the home side is calculated
             elo_ratings[away_team] = away_rating - delta_home # The new Elo rating for the away side is calculated
-            day_delta_sum += delta_home # The home Elo change is added to the daily delta sum
+            day_delta_sum += delta_elo_1x2 # The basic home Elo change is added to the daily delta sum
 
         championship_matches_today = championship_all[championship_all["DateKey"] == match_date].sort_values(["HomeTeam", "AwayTeam"]) # The championship fixtures for that date are selected and are sorted by home team and then away team names
         for _, fixture in championship_matches_today.iterrows(): # Iterates over each championship fixture on that date
@@ -158,10 +219,33 @@ def add_elo_features(df, k_factor=20): # Adds Elo ratings and sets the intial el
                 score_home = 0 # The score result is 0
             home_rating_adjusted = home_rating + dynamic_hfa # The elo rating for the home side is adjusted to include the home field advantage
             expected_home = 1 / (1 + 10 ** (-(home_rating_adjusted - away_rating) / 400)) # The home win probability is computed
-            delta_home = k_factor * (score_home - expected_home) # The Elo change for the home side is calculated
+            if score_home == 1: # If the home side won
+                p_1x2 = expected_home # Probability of result is equal to the probability of home side win
+            elif score_home == 0: # If the home side lost
+                p_1x2 = 1 - expected_home # Probability of result is equal to the probability of 1 - home side win
+            else: # If the home side drew
+                p_1x2 = 1.0 # The probability of result is set to a neutral value
+            if score_home == 0.5: # If the home side drew
+                s_norm = 1.0 # The normalisation term S is set to a neutral value
+            else: # If the home side won or lost
+                s_norm = normalization_numerator / max(float(p_1x2), 1e-12) # The normalisation term S is computed
+            delta_elo_1x2 = k_factor * (score_home - expected_home) # The basic Elo change for the home side is calculated
+            if score_home == 0.5: # If the home side drew
+                delta_home = delta_elo_1x2 # The basic elo change is kept
+            else: # If the home side won or lost
+                margin_value = directed_margin_lookup.get((home_team, away_team), default_margin) # The most common margin for the team pair is looked up and if it is not found the most common margin is used
+                if pd.isna(margin_value): #  If margin is found but is NA
+                    margin_value = default_margin # Most common margin is assigned
+                margin_value = float(margin_value) # Margin is saved as a float
+                if margin_value < 0: # If the margin is negative
+                    raise ValueError(f"Negative estimated margin for fixture {home_team} vs {away_team}: {margin_value}") # A value error is raised
+                if margin_value < 1: # If the margin is less than 1
+                    margin_value = default_non_draw_margin # The most common non draw margin is assigned
+                delta_elo_goal = delta_elo_1x2 / max(float(s_norm), 1e-12) # Basic elo change is converted to a one goal equivalent with the denominator being 1e-12 if it is too small to prevent division by 0
+                delta_home = delta_elo_goal * (margin_value ** 0.5) # Final elo change is calculated by multiplying by the square root of the actual margin
             elo_ratings[home_team] = home_rating + delta_home # The new Elo rating for the home side is calculated
             elo_ratings[away_team] = away_rating - delta_home # The new Elo rating for the away side is calculated
-            day_delta_sum += delta_home # The home Elo change is added to the daily delta sum
+            day_delta_sum += delta_elo_1x2 # The basic home Elo change is added to the daily delta sum
 
         dynamic_hfa += day_delta_sum * 0.075 # The dynamic HFA value is updated at the end of the day using the daily home delta sum
 
@@ -192,6 +276,31 @@ def predict_2023_with_elo_updates(model, test_df, feature_columns, prediction_to
     if not required_feature_columns.issubset(test_df.columns): # If any required precomputed column is missing
         missing = required_feature_columns.difference(test_df.columns) # The missing columns are identified
         raise ValueError(f"Missing required columns in test_df: {sorted(missing)}") # A value error is raised
+    margin_training_df = pd.read_csv("data/processed/eng1_all_seasons.csv") # The combined seasons dataset is read from the specified direcotory
+    margin_training_df["Season"] = pd.to_numeric(margin_training_df["Season"], errors="coerce") # The Season column is converted to numeric
+    margin_training_df = margin_training_df[margin_training_df["Season"] < 2023].copy() # Only rows where the season is less than 2023 are kept
+    margin_data = margin_training_df[["HomeTeam", "AwayTeam", "FullTimeHomeGoals", "FullTimeAwayGoals"]].copy() # Only columns needed for goal margin are kept
+    margin_data["FullTimeHomeGoals"] = pd.to_numeric(margin_data["FullTimeHomeGoals"], errors="coerce") # The Home goals column is converted to numeric
+    margin_data["FullTimeAwayGoals"] = pd.to_numeric(margin_data["FullTimeAwayGoals"], errors="coerce") # The Away goals column is converted to numeric
+    margin_data = margin_data.dropna(subset=["HomeTeam", "AwayTeam", "FullTimeHomeGoals", "FullTimeAwayGoals"]) # Rows with missing team names or goals are dropped
+    margin_data["Margin"] = (margin_data["FullTimeHomeGoals"] - margin_data["FullTimeAwayGoals"]).abs().astype(int) # The absolute score margin is computed and stored as an integer in a new Margin column
+    if margin_data.empty: # If there are no historical matches
+        raise ValueError("No valid training scoreline history found to build head to head margins.") # A value error is raised
+    margin_counts = margin_data.groupby(["HomeTeam", "AwayTeam", "Margin"]).size().reset_index(name="Count") # Rows are grouped by home team, away team and margin and the number of matches per group are counted and the index is then reset producing a new Count column
+    margin_counts = margin_counts.sort_values(["HomeTeam", "AwayTeam", "Count", "Margin"], ascending=[True, True, False, True]) # Rows are first sorted by home team in alphabetical order then by away team in alphabetical order then by the most frequent margin and finally by the smallest margin
+    most_common_margin = margin_counts.drop_duplicates(subset=["HomeTeam", "AwayTeam"], keep="first") # The most common margin row is kept for each head to head pair with the smallest margin being kept if there is a tie
+    directed_margin_lookup = {(row["HomeTeam"], row["AwayTeam"]): float(row["Margin"]) for _, row in most_common_margin.iterrows()} # For each row in most_common_margin a dictionary entry is built in the format (HomeTeam,AwayTeam): Margin and stored in a dictionary
+    default_margin = float(margin_data["Margin"].mode().iloc[0]) # The most frequent margin in the data is saved as a float with the smallest margin being taken if there is a tie
+    non_draw_margins = margin_data[margin_data["Margin"] >= 1].copy() # Only margins which are not a draw margin are saved
+    if non_draw_margins.empty: # If there are no non draw margins
+        raise ValueError("No non draw training matches found to build margin probabilities.") # A value error is raised
+    default_non_draw_margin = float(non_draw_margins["Margin"].mode().iloc[0]) # The most frequent non draw margin is saved as a float with the smallest margin being taken if there is a tie
+    margin_probability_table = non_draw_margins["Margin"].value_counts(normalize=True) # The number of appearances of each unique margin is counted and divided by the total number of times where the margin was not 0
+    margin_probability_lookup = {float(margin): float(probability) for margin, probability in margin_probability_table.items()} # For each margin a dictionary entry is built in the format margin: probability and stored in a dictionary as a float
+    default_p_margin = float(margin_probability_table.min()) # Unseen margins are set to the least common margin
+    normalization_numerator = sum((margin ** 0.5) * probability for margin, probability in margin_probability_lookup.items()) # For each margin and respective probability sqrt(j) * p_margin(j) is calculated and all the sum is then calculated
+    if normalization_numerator <= 0: # If the numerator is invalid
+        raise ValueError("Invalid numerator computed from margin probabilities.") # A value error is raised
 
     season_sorted = test_df.sort_values(["DateParsed", "HomeTeam", "AwayTeam"]) # Rows are first sorted in chronological order by date and they are then sorted by HomeTeam and AwayTeam
     season_sorted["DateKey"] = season_sorted["DateParsed"].dt.normalize() # Each time in DateParsed is set to midnight for consistency
@@ -265,6 +374,14 @@ def predict_2023_with_elo_updates(model, test_df, feature_columns, prediction_to
             if pd.isna(hfa_value): # If HFA is missing for the fixture
                 raise ValueError(f"Missing HFA for 2023 fixture: {fixture['Date']} {home_team} vs {away_team}") # A value error is raised
             test_df.at[idx, "HFA"] = hfa_value # The HFA value before the fixture is stored at the fixture index of test_df
+            margin_value = directed_margin_lookup.get((home_team, away_team), default_margin) # The most common margin for the team pair is looked up and if it is not found the most common margin is used
+            if pd.isna(margin_value): # If margin is found but is NA
+                margin_value = default_margin # Most common margin is assigned
+            margin_value = float(margin_value) # Margin is saved as a float
+            if margin_value < 0: # If the margin is negative
+                raise ValueError(f"Negative estimated margin for fixture {home_team} vs {away_team}: {margin_value}") # A value error is raised
+            test_df.at[idx, "EstimatedMargin"] = margin_value # Estimated margin is added to the dataframe at the fixture index of test_df
+            test_df.at[idx, "PMargin"] = float(margin_probability_lookup.get(margin_value, default_p_margin)) # Margin probability is added to the dataframe at the fixture index of test_df
 
             row_features = test_df.loc[[idx], feature_columns] # The features of the fixture row being predicted are stored in a dataframe only containing the features of that single row
             if not hasattr(model, "predict_proba"): # If the model does not support probability estimates
@@ -290,10 +407,35 @@ def predict_2023_with_elo_updates(model, test_df, feature_columns, prediction_to
 
             home_rating_adjusted = home_rating + hfa_value # The elo rating for the home side is adjusted to include the home field advantage
             expected_home = 1 / (1 + 10 ** (-(home_rating_adjusted - away_rating) / 400)) # The home win probability is computed
-            delta_home = k_factor * (score_home - expected_home) # The Elo change for the home side is calculated
+            if score_home == 1: # If the home side won
+                p_1x2 = expected_home # Probability of result is equal to the probability of home side win
+            elif score_home == 0: # If the home side lost
+                p_1x2 = 1 - expected_home # Probability of result is equal to the probability of 1 - home side win
+            else: # If the home side drew
+                p_1x2 = 1.0 # The probability of result is set to a neutral value
+            test_df.at[idx, "P1X2"] = float(p_1x2) # The proability of result is added to the dataframe at the fixture index of test_df
+            if score_home == 0.5: # If the home side drew
+                s_norm = 1.0 # The normalisation term S is set to a neutral value
+            else: # If the home side won or lost
+                s_norm = normalization_numerator / max(float(p_1x2), 1e-12) # The normalisation term S is computed
+            test_df.at[idx, "SNorm"] = float(s_norm) # The normalisation term S is added to the dataframe at the fixture index of test_df
+            delta_elo_1x2 = k_factor * (score_home - expected_home) # The basic Elo change for the home side is calculated
+            if score_home == 0.5: # If the home side drew
+                delta_elo_goal = delta_elo_1x2 # The basic elo change is kept
+                delta_home = delta_elo_1x2 # The basic elo change is kept
+            else: # If the home side won or lost
+                if margin_value < 1: # If the margin is less than 1
+                    margin_for_scaling = default_non_draw_margin # The most common non draw margin is assigned
+                else: # If the margin is 1 or above
+                    margin_for_scaling = float(margin_value) # Margin is saved as a float
+                delta_elo_goal = delta_elo_1x2 / max(float(s_norm), 1e-12) # Basic elo change is converted to a one goal equivalent with the denominator being 1e-12 if it is too small to prevent division by 0
+                delta_home = delta_elo_goal * (margin_for_scaling ** 0.5) # Final elo change is calculated by multiplying by the square root of the actual margin
+            test_df.at[idx, "DeltaElo1X2"] = float(delta_elo_1x2) # The basic elo change is added to the dataframe at the fixture index of test_df
+            test_df.at[idx, "DeltaEloGoal"] = float(delta_elo_goal) # The basic elo change converted to a one goal equivalent is added to the dataframe at the fixture index of test_df
+            test_df.at[idx, "DeltaEloMargin"] = float(delta_home) # The final elo change is added to the dataframe at the fixture index of test_df
             current_ratings[home_team] = home_rating + delta_home # The new Elo rating for the home side is calculated and is updated in the current_ratings dictionary
             current_ratings[away_team] = away_rating - delta_home # The new Elo rating for the away side is calculated and is updated in the current_ratings dictionary
-            day_delta_sum += delta_home # The home Elo change is added to the daily delta sum
+            day_delta_sum += delta_elo_1x2 # The basic home Elo change is added to the daily delta sum
 
         championship_matches_today = championship_2023[championship_2023["DateKey"] == match_date].sort_values(["HomeTeam", "AwayTeam"]) # The championship fixtures for that date are selected and sorted by home team and then away team names
         for _, fixture in championship_matches_today.iterrows(): # Iterates over each championship fixture on that date
@@ -330,10 +472,33 @@ def predict_2023_with_elo_updates(model, test_df, feature_columns, prediction_to
 
             home_rating_adjusted = home_rating + current_hfa # The elo rating for the home side is adjusted to include the home field advantage
             expected_home = 1 / (1 + 10 ** (-(home_rating_adjusted - away_rating) / 400)) # The home win probability is computed
-            delta_home = k_factor * (score_home - expected_home) # The Elo change for the home side is calculated
+            if score_home == 1: # If the home side won
+                p_1x2 = expected_home # Probability of result is equal to the probability of home side win
+            elif score_home == 0: # If the home side lost
+                p_1x2 = 1 - expected_home # Probability of result is equal to the probability of 1 - home side win
+            else: # If the home side drew
+                p_1x2 = 1.0 # The probability of result is set to a neutral value
+            if score_home == 0.5: # If the home side drew
+                s_norm = 1.0 # The normalisation term S is set to a neutral value
+            else: # If the home side won or lost
+                s_norm = normalization_numerator / max(float(p_1x2), 1e-12) # The normalisation term S is computed
+            delta_elo_1x2 = k_factor * (score_home - expected_home) # The basic Elo change for the home side is calculated
+            if score_home == 0.5: # If the home side drew
+                delta_home = delta_elo_1x2 # The basic elo change is kept
+            else: # If the home side won or lost
+                margin_value = directed_margin_lookup.get((home_team, away_team), default_margin) # The most common margin for the team pair is looked up and if it is not found the most common margin is used
+                if pd.isna(margin_value): # If margin is found but is NA
+                    margin_value = default_margin # Most common margin is assigned
+                margin_value = float(margin_value) # Margin is saved as a float
+                if margin_value < 0: # If the margin is negative
+                    raise ValueError(f"Negative estimated margin for fixture {home_team} vs {away_team}: {margin_value}") # A value error is raised
+                if margin_value < 1: # If the margin is less than 1
+                    margin_value = default_non_draw_margin # The most common non draw margin is assigned
+                delta_elo_goal = delta_elo_1x2 / max(float(s_norm), 1e-12) # Basic elo change is converted to a one goal equivalent with the denominator being 1e-12 if it is too small to prevent division by 0
+                delta_home = delta_elo_goal * (margin_value ** 0.5) # Final elo change is calculated by multiplying by the square root of the actual margin
             current_ratings[home_team] = home_rating + delta_home # The new Elo rating for the home side is calculated and is updated in the current_ratings dictionary
             current_ratings[away_team] = away_rating - delta_home # The new Elo rating for the away side is calculated and is updated in the current_ratings dictionary
-            day_delta_sum += delta_home # The home Elo change is added to the daily delta sum
+            day_delta_sum += delta_elo_1x2 # The basic home Elo change is added to the daily delta sum
 
         current_hfa += day_delta_sum * 0.075 # The dynamic HFA value is updated at the end of the day using the daily home delta sum
 
