@@ -81,6 +81,7 @@ def plot_predicted_vs_actual_by_season(predictions_path: str = "data/results/*/*
                 ax.set_title(f"{model}: Actual vs Predicted Outcomes by Season (Home/Away/Draw)") # Title for bar chart is set
                 ax.set_xlabel("Season") # X-axis label is set
                 ax.set_ylabel("Number of Matches") # Y-axis label is set
+                ax.grid(axis="y", alpha=0.2) # Grid lines of transparency 0.2 are added across the y-axis
                 ax.legend(title="Outcome, Source", bbox_to_anchor=(1.02, 1), loc="upper left") # Title for legend is set and legend is positioned outside the plot
                 plt.tight_layout() # Layout is adjusted
 
@@ -110,6 +111,7 @@ def plot_predicted_vs_actual_by_season(predictions_path: str = "data/results/*/*
                 ax2.set_title(f"{model}: Incorrect Predictions (Predicted → Actual)") # Title for bar chart is set
                 ax2.set_xlabel("Mappings") # X-axis label is set
                 ax2.set_ylabel("Number of Matches") # Y-axis label is set
+                ax2.grid(axis="y", alpha=0.2) # Grid lines of transparency 0.2 are added across the y-axis
                 plt.xticks(rotation=30, ha="right") # X-axis labels are rotated 30 degrees anti clockwise for better readability
                 plt.tight_layout() # Layout is adjusted to prevent clipping
 
