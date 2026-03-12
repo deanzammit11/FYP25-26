@@ -6,6 +6,8 @@ def betting_simulation(initial_bankroll=100.0, max_fraction=1.0, min_edge=0.0):
     initial_bankroll = float(initial_bankroll) # Starting bankroll is converted to float
     max_fraction = float(max_fraction) # Maximum allowed stake fraction is converted to float
     min_edge = float(min_edge) # Minimum Kelly edge required to place a bet is converted to float
+    minimum_bet_stake = 0.01 # The minimum allowed bet staked is initialised
+    minimum_balance_to_continue = 1.0 # The minimum balance required to continue the simulation is initialised
     fixture_columns = ["Season", "Date", "HomeTeam", "AwayTeam"] # Fixture columns are defined
     probability_columns = ["ProbHome", "ProbDraw", "ProbAway"] # Model probability columns are defined
     odds_columns = ["Bet365HomeWinOdds", "Bet365DrawOdds", "Bet365AwayWinOdds"] # Odds columns are defined
@@ -55,6 +57,14 @@ def betting_simulation(initial_bankroll=100.0, max_fraction=1.0, min_edge=0.0):
         peak_half_kelly = initial_bankroll # Peak Half-Kelly bankroll value is initialised
         peak_intelligent_kelly = initial_bankroll # Peak Intelligent Kelly bankroll value is initialised
         peak_intelligent_half_kelly = initial_bankroll # Peak Intelligent Half-Kelly bankroll value is initialised
+        kelly_stopped_early = False # Flag indicating whether Kelly stopped early is initialised
+        kelly_stop_date = "" # The fixture date when Kelly stopped early is initialised
+        half_kelly_stopped_early = False # Flag indicating whether Half-Kelly stopped early is initialised
+        half_kelly_stop_date = "" # The fixture date when Half-Kelly stopped early is initialised
+        intelligent_kelly_stopped_early = False # Flag indicating whether Intelligent Kelly stopped early is initialised
+        intelligent_kelly_stop_date = "" # The fixture date when Intelligent Kelly stopped early is initialised
+        intelligent_half_kelly_stopped_early = False # Flag indicating whether Intelligent Half-Kelly stopped early is initialised
+        intelligent_half_kelly_stop_date = "" # The fixture date when Intelligent Half-Kelly stopped early is initialised
         rows = [] # An empty list which will store a dictionary for each fixture containing the data related to the bet on that fixture is intialised
         matchup_totals = {} # An empty dictionary which will store the total number of historical matches for each Elo tier home vs away pairing is initialised
         matchup_outcome_counts = {} # An empty dictionary which will store the total historical outcome counts for each Elo tier home vs away pairing is initialised
@@ -167,10 +177,25 @@ def betting_simulation(initial_bankroll=100.0, max_fraction=1.0, min_edge=0.0):
                 intelligent_kelly_fraction = min(max_fraction, max(0.0, kelly_fraction * intelligent_multiplier)) # Intelligent Kelly fraction is set where if it is negative it is set to 0 and if it is larger than the max fraction the max fraction is taken
                 intelligent_half_kelly_fraction = min(max_fraction, max(0.0, half_kelly_fraction * intelligent_multiplier)) # Intelligent Half-Kelly fraction is set where if it is negative it is set to 0 and if it is larger than the max fraction the max fraction is taken
 
-                kelly_stake = kelly_before * kelly_fraction # Kelly stake is calculated
-                half_kelly_stake = half_kelly_before * half_kelly_fraction # Half-Kelly stake is calculated
-                intelligent_kelly_stake = intelligent_kelly_before * intelligent_kelly_fraction # Intelligent Kelly stake is calculated
-                intelligent_half_kelly_stake = intelligent_half_kelly_before * intelligent_half_kelly_fraction # Intelligent Half-Kelly stake is calculated
+                kelly_stake = kelly_before * kelly_fraction if kelly_before >= minimum_balance_to_continue else 0.0 # Kelly stake is calculated if the bankroll is greater than the minimum balance required to continue the simulation
+                half_kelly_stake = half_kelly_before * half_kelly_fraction if half_kelly_before >= minimum_balance_to_continue else 0.0 # Half-Kelly stake is calculated if the bankroll is greater than the minimum balance required to continue the simulation
+                intelligent_kelly_stake = intelligent_kelly_before * intelligent_kelly_fraction if intelligent_kelly_before >= minimum_balance_to_continue else 0.0 # Intelligent Kelly stake is calculated if the bankroll is greater than the minimum balance required to continue the simulation
+                intelligent_half_kelly_stake = intelligent_half_kelly_before * intelligent_half_kelly_fraction if intelligent_half_kelly_before >= minimum_balance_to_continue else 0.0 # Intelligent Half-Kelly stake is calculated if the bankroll is greater than the minimum balance required to continue the simulation
+
+                if 0.0 < kelly_stake <= minimum_bet_stake: # If the Kelly stake is positive but less than or equal to the minimum allowed stake
+                    kelly_fraction = 0.0 # The Kelly stake fraction is set to 0
+                    kelly_stake = 0.0 # The Kelly stake is set to 0
+                if 0.0 < half_kelly_stake <= minimum_bet_stake: # If the Half-Kelly stake is positive but less than or equal to the minimum allowed stake
+                    half_kelly_fraction = 0.0 # The Half-Kelly stake fraction is set to 0
+                    half_kelly_stake = 0.0 # The Half-Kelly stake is set to 0
+                if 0.0 < intelligent_kelly_stake <= minimum_bet_stake: # If the Intelligent Kelly stake is positive but less than or equal to the minimum allowed stake
+                    intelligent_kelly_fraction = 0.0 # The Intelligent Kelly stake fraction is set to 0
+                    intelligent_kelly_stake = 0.0 # The Intelligent Kelly stake is set to 0
+                if 0.0 < intelligent_half_kelly_stake <= minimum_bet_stake: # If the Intelligent Half-Kelly stake is positive but less than or equal to the minimum allowed stake
+                    intelligent_half_kelly_fraction = 0.0 # The Intelligent Half-Kelly stake fraction is set to 0
+                    intelligent_half_kelly_stake = 0.0 # The Intelligent Half-Kelly stake is set to 0
+
+                bet_placed = any(stake > 0.0 for stake in [kelly_stake, half_kelly_stake, intelligent_kelly_stake, intelligent_half_kelly_stake]) # If at least one strategy placed a valid stake on the fixture bet_placed is set to true and false otherwise
 
                 won = int(row["ResultEncoded"]) == int(best["BetOnEncoded"]) # It is checked if bet won
                 kelly_profit_loss = kelly_stake * best["b"] if won else -kelly_stake # Kelly profit or loss is calculated
@@ -182,6 +207,18 @@ def betting_simulation(initial_bankroll=100.0, max_fraction=1.0, min_edge=0.0):
                 half_kelly_balance = half_kelly_before + half_kelly_profit_loss # Half-Kelly bankroll is updated
                 intelligent_kelly_balance = intelligent_kelly_before + intelligent_kelly_profit_loss # Intelligent Kelly bankroll is updated
                 intelligent_half_kelly_balance = intelligent_half_kelly_before + intelligent_half_kelly_profit_loss # Intelligent Half-Kelly bankroll is updated
+                if (not kelly_stopped_early) and kelly_before >= minimum_balance_to_continue and kelly_balance < minimum_balance_to_continue: # If stopped early flag is false, the balance before the fixture was greater than the balance required to continue and after the fixture the balance fell below the minimum balance required to continue
+                    kelly_stopped_early = True # Flag indicating early stopping is set to true
+                    kelly_stop_date = str(row["Date"]) # The date of the fixture which resulted in the early stopping is saved
+                if (not half_kelly_stopped_early) and half_kelly_before >= minimum_balance_to_continue and half_kelly_balance < minimum_balance_to_continue: # If stopped early flag is false, the balance before the fixture was greater than the balance required to continue and after the fixture the balance fell below the minimum balance required to continue
+                    half_kelly_stopped_early = True # Flag indicating early stopping is set to true
+                    half_kelly_stop_date = str(row["Date"])  # The date of the fixture which resulted in the early stopping is saved
+                if (not intelligent_kelly_stopped_early) and intelligent_kelly_before >= minimum_balance_to_continue and intelligent_kelly_balance < minimum_balance_to_continue: # If stopped early flag is false, the balance before the fixture was greater than the balance required to continue and after the fixture the balance fell below the minimum balance required to continue
+                    intelligent_kelly_stopped_early = True # Flag indicating early stopping is set to true
+                    intelligent_kelly_stop_date = str(row["Date"]) # The date of the fixture which resulted in the early stopping is saved
+                if (not intelligent_half_kelly_stopped_early) and intelligent_half_kelly_before >= minimum_balance_to_continue and intelligent_half_kelly_balance < minimum_balance_to_continue: # If stopped early flag is false, the balance before the fixture was greater than the balance required to continue and after the fixture the balance fell below the minimum balance required to continue
+                    intelligent_half_kelly_stopped_early = True # Flag indicating early stopping is set to true
+                    intelligent_half_kelly_stop_date = str(row["Date"]) # The date of the fixture which resulted in the early stopping is saved
                 peak_kelly = max(peak_kelly, kelly_balance) # Peak Kelly bankroll is updated
                 peak_half_kelly = max(peak_half_kelly, half_kelly_balance) # Peak Half-Kelly bankroll is updated
                 peak_intelligent_kelly = max(peak_intelligent_kelly, intelligent_kelly_balance) # Peak Intelligent Kelly bankroll is updated
@@ -189,6 +226,7 @@ def betting_simulation(initial_bankroll=100.0, max_fraction=1.0, min_edge=0.0):
 
                 rows.append({ # Bet fixture row is appended
                     **base_fixture_row, # The base fixture fields are stored
+                    "BetPlaced": bet_placed, # Flag indicating whether at least one strategy placed a stake on the fixture is stored
                     "BetOn": best["BetOn"], # Selected bet label is stored
                     "BetOnEncoded": best["BetOnEncoded"], # Selected encoded outcome is stored
                     "p": best["p"], # Selected outcome win probability is stored
@@ -222,6 +260,9 @@ def betting_simulation(initial_bankroll=100.0, max_fraction=1.0, min_edge=0.0):
                     "IntelligentHalfKellyDropFromPeak": (peak_intelligent_half_kelly - intelligent_half_kelly_balance) / peak_intelligent_half_kelly if peak_intelligent_half_kelly > 0 else 0.0, # Intelligent Half-Kelly drop from peak after fixture is stored
                 })
 
+                if all(balance < minimum_balance_to_continue for balance in [kelly_balance, half_kelly_balance, intelligent_kelly_balance, intelligent_half_kelly_balance]): # If every bankroll is less than the minimum balance required to continue
+                    break # The simulation is stopped
+
             if pd.notna(home_tier_value) and pd.notna(away_tier_value) and pd.notna(row["ResultEncoded"]): # If current fixture Elo tiers and actual outcome are available
                 tier_key = (int(home_tier_value), int(away_tier_value)) # Elo tier matchup key is created
                 outcome_key = (int(home_tier_value), int(away_tier_value), int(row["ResultEncoded"])) # Elo tier matchup and actual outcome key is created and stored
@@ -229,7 +270,10 @@ def betting_simulation(initial_bankroll=100.0, max_fraction=1.0, min_edge=0.0):
                 matchup_outcome_counts[outcome_key] = matchup_outcome_counts.get(outcome_key, 0) + 1 # Elo tier matchup pair outcome count is incremented
 
         betting_log = pd.DataFrame(rows) # Fixture rows are converted into a dataframe
-        placed_bets = betting_log[betting_log["BetPlaced"]] # Rows where a bet was placed are filtered
+        kelly_bets_placed = int((betting_log["KellyStake"] > 0).sum()) if not betting_log.empty else 0 # The KellyStake value is checked for each row and if it is greater than 0 it is set to True and the number of True instances are then counted
+        half_kelly_bets_placed = int((betting_log["HalfKellyStake"] > 0).sum()) if not betting_log.empty else 0 # The HalfKellyStake value is checked for each row and if it is greater than 0 it is set to True and the number of True instances are then counted
+        intelligent_kelly_bets_placed = int((betting_log["IntelligentKellyStake"] > 0).sum()) if not betting_log.empty else 0 # The IntelligentKellyStake value is checked for each row and if it is greater than 0 it is set to True and the number of True instances are then counted
+        intelligent_half_kelly_bets_placed = int((betting_log["IntelligentHalfKellyStake"] > 0).sum()) if not betting_log.empty else 0 # The IntelligentHalfKellyStake value is checked for each row and if it is greater than 0 it is set to True and the number of True instances are then counted
 
         kelly_profit = float(kelly_balance - initial_bankroll) # Total Kelly profit is calculated
         half_kelly_profit = float(half_kelly_balance - initial_bankroll) # Total Half-Kelly profit is calculated
@@ -247,11 +291,13 @@ def betting_simulation(initial_bankroll=100.0, max_fraction=1.0, min_edge=0.0):
                 "InitialBankroll": initial_bankroll, # Initial bankroll used for strategy is stored
                 "FinalBalance": float(kelly_balance), # Final Kelly bankroll is stored
                 "Profit": kelly_profit, # Kelly profit is stored
-                "BetsPlaced": int(len(placed_bets)), # Number of placed bets is stored
+                "BetsPlaced": kelly_bets_placed, # Number of fixtures where Kelly placed a bet is stored
                 "TotalStaked": kelly_total_staked, # Total Kelly staked amount is stored
                 "ROI_On_Stake": (kelly_profit / kelly_total_staked) if kelly_total_staked > 0 else 0.0, # Kelly ROI on staked amount is stored
                 "Return_On_Bankroll": (kelly_profit / initial_bankroll) if initial_bankroll > 0 else 0.0, # Kelly return on starting bankroll is stored
                 "MaxDropFromPeak": float(betting_log["KellyDropFromPeak"].max()) if not betting_log.empty else 0.0, # Maximum Kelly drop from peak is stored
+                "StoppedEarly": kelly_stopped_early, # Flag indicating whether Kelly stopped early is stored
+                "StopDate": kelly_stop_date, # The date of the fixture when Kelly stopped early is stored
             },
             { # Half-Kelly summary row is added
                 "Model": model_name, # Model name is stored in summary row
@@ -259,11 +305,13 @@ def betting_simulation(initial_bankroll=100.0, max_fraction=1.0, min_edge=0.0):
                 "InitialBankroll": initial_bankroll, # Initial bankroll used for strategy is stored
                 "FinalBalance": float(half_kelly_balance), # Final Half-Kelly bankroll is stored
                 "Profit": half_kelly_profit, # Half-Kelly profit is stored
-                "BetsPlaced": int(len(placed_bets)), # Number of placed bets is stored
+                "BetsPlaced": half_kelly_bets_placed, # Number of fixtures where Half-Kelly placed a bet is stored
                 "TotalStaked": half_kelly_total_staked, # Total Half-Kelly staked amount is stored
                 "ROI_On_Stake": (half_kelly_profit / half_kelly_total_staked) if half_kelly_total_staked > 0 else 0.0, # Half-Kelly ROI on staked amount is stored
                 "Return_On_Bankroll": (half_kelly_profit / initial_bankroll) if initial_bankroll > 0 else 0.0, # Half-Kelly return on starting bankroll is stored
                 "MaxDropFromPeak": float(betting_log["HalfKellyDropFromPeak"].max()) if not betting_log.empty else 0.0, # Maximum Half-Kelly drop from peak is stored
+                "StoppedEarly": half_kelly_stopped_early, # Flag indicating whether Half-Kelly stopped early is stored
+                "StopDate": half_kelly_stop_date, # The date of the fixture when Half-Kelly stopped early is stored
             },
             { # Intelligent Kelly summary row is added
                 "Model": model_name, # Model name is stored in summary row
@@ -271,11 +319,13 @@ def betting_simulation(initial_bankroll=100.0, max_fraction=1.0, min_edge=0.0):
                 "InitialBankroll": initial_bankroll, # Initial bankroll used for strategy is stored
                 "FinalBalance": float(intelligent_kelly_balance), # Final Intelligent Kelly bankroll is stored
                 "Profit": intelligent_kelly_profit, # Intelligent Kelly profit is stored
-                "BetsPlaced": int(len(placed_bets)), # Number of placed bets is stored
+                "BetsPlaced": intelligent_kelly_bets_placed, # Number of fixtures where Intelligent Kelly placed a bet is stored
                 "TotalStaked": intelligent_kelly_total_staked, # Total Intelligent Kelly staked amount is stored
                 "ROI_On_Stake": (intelligent_kelly_profit / intelligent_kelly_total_staked) if intelligent_kelly_total_staked > 0 else 0.0, # Intelligent Kelly ROI on staked amount is stored
                 "Return_On_Bankroll": (intelligent_kelly_profit / initial_bankroll) if initial_bankroll > 0 else 0.0, # Intelligent Kelly return on starting bankroll is stored
                 "MaxDropFromPeak": float(betting_log["IntelligentKellyDropFromPeak"].max()) if not betting_log.empty else 0.0, # Maximum Intelligent Kelly drop from peak is stored
+                "StoppedEarly": intelligent_kelly_stopped_early, # Flag indicating whether Intelligent Kelly stopped early is stored
+                "StopDate": intelligent_kelly_stop_date, # The date of the fixture when Intelligent Kelly stopped early is stored
             },
             { # Intelligent Half-Kelly summary row is added
                 "Model": model_name, # Model name is stored in summary row
@@ -283,11 +333,13 @@ def betting_simulation(initial_bankroll=100.0, max_fraction=1.0, min_edge=0.0):
                 "InitialBankroll": initial_bankroll, # Initial bankroll used for strategy is stored
                 "FinalBalance": float(intelligent_half_kelly_balance), # Final Intelligent Half-Kelly bankroll is stored
                 "Profit": intelligent_half_kelly_profit, # Intelligent Half-Kelly profit is stored
-                "BetsPlaced": int(len(placed_bets)), # Number of placed bets is stored
+                "BetsPlaced": intelligent_half_kelly_bets_placed, # Number of fixtures where Intelligent Half-Kelly placed a bet is stored
                 "TotalStaked": intelligent_half_kelly_total_staked, # Total Intelligent Half-Kelly staked amount is stored
                 "ROI_On_Stake": (intelligent_half_kelly_profit / intelligent_half_kelly_total_staked) if intelligent_half_kelly_total_staked > 0 else 0.0, # Intelligent Half-Kelly ROI on staked amount is stored
                 "Return_On_Bankroll": (intelligent_half_kelly_profit / initial_bankroll) if initial_bankroll > 0 else 0.0, # Intelligent Half-Kelly return on starting bankroll is stored
                 "MaxDropFromPeak": float(betting_log["IntelligentHalfKellyDropFromPeak"].max()) if not betting_log.empty else 0.0, # Maximum Intelligent Half-Kelly drop from peak is stored
+                "StoppedEarly": intelligent_half_kelly_stopped_early, # Flag indicating whether Intelligent Half-Kelly stopped early is stored
+                "StopDate": intelligent_half_kelly_stop_date, # The date of the fixture when Intelligent Half-Kelly stopped early is stored
             },
         ])
 
