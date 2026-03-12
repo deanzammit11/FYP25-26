@@ -24,6 +24,11 @@ def prepare_features():
     df["Bet365DrawOddsPercentage"] = df["Draw"] / df["Total"] # Convert the implied draw probability into a percentage
     df["Bet365AwayWinOddsPercentage"] = df["Away"] / df["Total"] # Convert the implied away win probability into a percentage
 
+    favourite_odds = df[["Bet365HomeWinOdds", "Bet365DrawOdds", "Bet365AwayWinOdds"]].min(axis=1) # The most likely outcome for each row according to the odds is found
+    df["OddsFavourHome"] = df["Bet365HomeWinOdds"].eq(favourite_odds).astype(int) # It is checked if the home odds match the favourite odds and if they match true is returned which is then converted into an integer becoming a 1 or 0 if false
+    df["OddsFavourDraw"] = df["Bet365DrawOdds"].eq(favourite_odds).astype(int) # It is checked if the draw odds match the favourite odds and if they match true is returned which is then converted into an integer becoming a 1 or 0 if false
+    df["OddsFavourAway"] = df["Bet365AwayWinOdds"].eq(favourite_odds).astype(int) # It is checked if the away odds match the favourite odds and if they match true is returned which is then converted into an integer becoming a 1 or 0 if false
+
     df["OddsDifference_HvA"] = (df["Bet365HomeWinOddsPercentage"] - df["Bet365AwayWinOddsPercentage"]) # Home vs away odds difference without absolute value
     df["OddsDifference_HvD"] = (df["Bet365HomeWinOddsPercentage"] - df["Bet365DrawOddsPercentage"]) # Home vs draw odds difference without absolute value
     df["OddsDifference_AvD"] = (df["Bet365AwayWinOddsPercentage"] - df["Bet365DrawOddsPercentage"]) # Away vs draw odds difference without absolute value
@@ -34,6 +39,7 @@ def prepare_features():
     odds_cols = [ # Columns to store in odds csv file are selected
         "Season", "Date", "HomeTeam", "AwayTeam", "ResultEncoded",
         "Bet365HomeWinOddsPercentage", "Bet365DrawOddsPercentage", "Bet365AwayWinOddsPercentage",
+        "OddsFavourHome", "OddsFavourDraw", "OddsFavourAway",
         "OddsDifference_HvA", "OddsDifference_HvD", "OddsDifference_AvD"
     ]
     df_odds = df[odds_cols].dropna() # Null values are removed
@@ -379,6 +385,7 @@ def prepare_features():
         "Season", "Date", "HomeTeam", "AwayTeam", "ResultEncoded",
         "Bet365HomeWinOdds", "Bet365DrawOdds", "Bet365AwayWinOdds",
         "Bet365HomeWinOddsPercentage", "Bet365DrawOddsPercentage", "Bet365AwayWinOddsPercentage",
+        "OddsFavourHome", "OddsFavourDraw", "OddsFavourAway",
         "OddsDifference_HvA", "OddsDifference_HvD", "OddsDifference_AvD",
         "HomeForm", "AwayForm", "HomeAdvantageIndex",
         "HomeGeneralForm", "AwayGeneralForm", "GeneralFormDifference",

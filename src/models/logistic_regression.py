@@ -24,12 +24,15 @@ def run_logistic_regression(data_path = "data/features/eng1_data_combined.csv"):
 
     # Features used to predict are defined
     features = [
-        "Bet365HomeWinOddsPercentage",
-        "Bet365DrawOddsPercentage",
-        "Bet365AwayWinOddsPercentage",
-        "OddsDifference_HvA",
-        "OddsDifference_HvD",
-        "OddsDifference_AvD",
+        # "Bet365HomeWinOddsPercentage",
+        # "Bet365DrawOddsPercentage",
+        # "Bet365AwayWinOddsPercentage",
+        "OddsFavourHome",
+        "OddsFavourDraw",
+        "OddsFavourAway",
+        # "OddsDifference_HvA",
+        # "OddsDifference_HvD",
+        # "OddsDifference_AvD",
         "HomeForm",
         "AwayForm",
         "HomeAdvantageIndex",
