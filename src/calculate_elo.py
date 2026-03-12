@@ -194,7 +194,7 @@ def add_elo_features(df, k_factor=20): # Adds Elo ratings and sets the intial el
                 delta_home = delta_elo_goal * (margin_value ** 0.5) # Final elo change is calculated by multiplying by the square root of the actual margin
             elo_ratings[home_team] = home_rating + delta_home # The new Elo rating for the home side is calculated
             elo_ratings[away_team] = away_rating - delta_home # The new Elo rating for the away side is calculated
-            day_delta_sum += delta_elo_1x2 # The basic home Elo change is added to the daily delta sum
+            day_delta_sum += delta_home # The final weighted home Elo change is added to the daily delta sum
 
         championship_matches_today = championship_all[championship_all["DateKey"] == match_date].sort_values(["HomeTeam", "AwayTeam"]) # The championship fixtures for that date are selected and are sorted by home team and then away team names
         for _, fixture in championship_matches_today.iterrows(): # Iterates over each championship fixture on that date
@@ -245,9 +245,9 @@ def add_elo_features(df, k_factor=20): # Adds Elo ratings and sets the intial el
                 delta_home = delta_elo_goal * (margin_value ** 0.5) # Final elo change is calculated by multiplying by the square root of the actual margin
             elo_ratings[home_team] = home_rating + delta_home # The new Elo rating for the home side is calculated
             elo_ratings[away_team] = away_rating - delta_home # The new Elo rating for the away side is calculated
-            day_delta_sum += delta_elo_1x2 # The basic home Elo change is added to the daily delta sum
+            day_delta_sum += delta_home # The final weighted home Elo change is added to the daily delta sum
 
-        dynamic_hfa += day_delta_sum * 0.075 # The dynamic HFA value is updated at the end of the day using the daily home delta sum
+        dynamic_hfa += day_delta_sum * 0.075 # The dynamic HFA value is updated at the end of the day using the daily weighted home delta sum
 
     df["HFA"] = df["DateKey"].map(day_hfa_map) # Each fixture is assigned the HFA value based on the day to HFA map
     if df["HFA"].isna().any(): # If the HFA value of any fixture is null
@@ -435,7 +435,7 @@ def predict_2023_with_elo_updates(model, test_df, feature_columns, prediction_to
             test_df.at[idx, "DeltaEloMargin"] = float(delta_home) # The final elo change is added to the dataframe at the fixture index of test_df
             current_ratings[home_team] = home_rating + delta_home # The new Elo rating for the home side is calculated and is updated in the current_ratings dictionary
             current_ratings[away_team] = away_rating - delta_home # The new Elo rating for the away side is calculated and is updated in the current_ratings dictionary
-            day_delta_sum += delta_elo_1x2 # The basic home Elo change is added to the daily delta sum
+            day_delta_sum += delta_home # The final weighted home Elo change is added to the daily delta sum
 
         championship_matches_today = championship_2023[championship_2023["DateKey"] == match_date].sort_values(["HomeTeam", "AwayTeam"]) # The championship fixtures for that date are selected and sorted by home team and then away team names
         for _, fixture in championship_matches_today.iterrows(): # Iterates over each championship fixture on that date
@@ -498,9 +498,9 @@ def predict_2023_with_elo_updates(model, test_df, feature_columns, prediction_to
                 delta_home = delta_elo_goal * (margin_value ** 0.5) # Final elo change is calculated by multiplying by the square root of the actual margin
             current_ratings[home_team] = home_rating + delta_home # The new Elo rating for the home side is calculated and is updated in the current_ratings dictionary
             current_ratings[away_team] = away_rating - delta_home # The new Elo rating for the away side is calculated and is updated in the current_ratings dictionary
-            day_delta_sum += delta_elo_1x2 # The basic home Elo change is added to the daily delta sum
+            day_delta_sum += delta_home # The final weighted home Elo change is added to the daily delta sum
 
-        current_hfa += day_delta_sum * 0.075 # The dynamic HFA value is updated at the end of the day using the daily home delta sum
+        current_hfa += day_delta_sum * 0.075 # The dynamic HFA value is updated at the end of the day using the daily weighted home delta sum
 
     predictions = pd.Series(predictions_by_index).reindex(test_df.index) # A series is built from the predictions_by_index dictionary and is reindexed so that row indexes match the row index of test_df
     if probabilities_by_index: # If probabilities were computed
