@@ -83,8 +83,7 @@ def score_outcomes_by_season():
     plt.tight_layout() # Layout is adjusted
     plt.savefig("data/results/poisson_goals_distribution.png", dpi=200) # Image is saved to the specified path setting the resolution
     plt.close() # Figure is closed
-
-    return result # The final dataframe is returned
+    print(f"Saved Poisson fit to goal distributions plot: {"data/results/score_outcomes_by_elo_tier.png"}") # A confirmation message showing where the plot was saved is printed
 
 if __name__ == "__main__":
     score_outcomes_by_season()
