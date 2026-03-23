@@ -22,6 +22,9 @@ def run_xgboost(data_path = "data/features/eng1_data_combined.csv"):
 
     # Features used to predict are defined
     features = [
+        # "Bet365HomeWinOdds",
+        # "Bet365DrawOdds",
+        # "Bet365AwayWinOdds",
         # "Bet365HomeWinOddsPercentage",
         # "Bet365DrawOddsPercentage",
         # "Bet365AwayWinOddsPercentage",
