@@ -1,6 +1,8 @@
 import os
 import glob
 import pandas as pd
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from src.utils import ensure_dirs, extract_model_name_from_filename
 

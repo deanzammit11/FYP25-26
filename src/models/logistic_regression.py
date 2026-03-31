@@ -2,6 +2,8 @@ import numpy as np
 import pandas as pd
 import random
 import os
+from pathlib import Path
+from joblib import dump
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import StratifiedGroupKFold
@@ -24,18 +26,18 @@ def run_logistic_regression(data_path = "data/features/eng1_data_combined.csv"):
 
     # Features used to predict are defined
     features = [
-        # "Bet365HomeWinOdds",
-        # "Bet365DrawOdds",
-        # "Bet365AwayWinOdds",
-        # "Bet365HomeWinOddsPercentage",
-        # "Bet365DrawOddsPercentage",
-        # "Bet365AwayWinOddsPercentage",
+        "Bet365HomeWinOdds",
+        "Bet365DrawOdds",
+        "Bet365AwayWinOdds",
+        "Bet365HomeWinOddsPercentage",
+        "Bet365DrawOddsPercentage",
+        "Bet365AwayWinOddsPercentage",
         "OddsFavourHome",
         "OddsFavourDraw",
         "OddsFavourAway",
-        # "OddsDifference_HvA",
-        # "OddsDifference_HvD",
-        # "OddsDifference_AvD",
+        "OddsDifference_HvA",
+        "OddsDifference_HvD",
+        "OddsDifference_AvD",
         "HomeForm",
         "AwayForm",
         "HomeAdvantageIndex",
@@ -74,7 +76,7 @@ def run_logistic_regression(data_path = "data/features/eng1_data_combined.csv"):
         "HomeElo", 
         "AwayElo",
         "EloTierHome",
-        "EloTierAway",
+        "EloTierAway"
     ]
 
     X_train = train_df[features] # Features used for training
@@ -195,12 +197,12 @@ def run_logistic_regression(data_path = "data/features/eng1_data_combined.csv"):
         X_train_selected = X_train.loc[:, selected_features] # Selects all rows and only the selected features for each row in the training set and stores them
         X_test_selected = X_test.loc[:, selected_features] # Selects all rows and only the selected features for each row in the testing set and stores them
 
-        pd.DataFrame({"Feature": selected_features}).to_csv("data/results/logistic regression/logistic_regression_selected_features.csv", index=False) # The selected features are stored in a csv file in the specified directory
-        print("Selected features saved to: data/results/logistic regression/logistic_regression_selected_features.csv") # Prints confirmation that the selected features have been stored
-
     best_model = None # Variable to store the best performing model is defined
     best_score = 0 # Variable to store the best achieved score is defined
     best_params = None # Variable to store parameters of the best model is defined
+
+    pd.DataFrame({"Feature": selected_features}).to_csv("data/results/logistic regression/logistic_regression_selected_features.csv", index=False) # The features used for training are stored in a csv file in the specified directory
+    print("Selected features saved to: data/results/logistic regression/logistic_regression_selected_features.csv") # Prints confirmation that the features used for training have been stored
 
     for solver_name, space in solver_spaces.items(): # Genetic algorithm is run for each solver not to have compatibility issues
         print(f"Running Genetic Algorithm for Solver: {solver_name}") # Confrimation message showing that the genetic algorithm is being run for that solver
@@ -235,6 +237,10 @@ def run_logistic_regression(data_path = "data/features/eng1_data_combined.csv"):
     print("Genetic Algorithm Complete. Best Parameters:") # Prints confirmation message that genetic algorithm completed successfully
     print(best_params) # Best parameters found from the genetic algorithm are printed
     print(f"Best Cross Validation F1: {best_score:.3f}") # Best cross validation F1 score is printed
+
+    model_output_path = Path("data/results/logistic regression/logistic_regression_best_model.joblib") # The model output directory path is stored
+    dump(best_model, model_output_path) # The model is saved in the specified output path
+    print(f"Best model saved to: {model_output_path}") # A confirmation message showing where the model was saved is printed
 
     preds, test_df = predict_2023_with_elo_updates(model=best_model, test_df=test_df, feature_columns=selected_features) # Predicted outcomes are generated with Elo updated after each predicted fixture
 

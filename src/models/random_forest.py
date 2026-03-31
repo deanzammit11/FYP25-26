@@ -2,6 +2,8 @@ import numpy as np
 import pandas as pd
 import random
 import os
+from pathlib import Path
+from joblib import dump
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import StratifiedGroupKFold
 from sklearn.metrics import make_scorer, f1_score
@@ -22,18 +24,18 @@ def run_random_forest(data_path = "data/features/eng1_data_combined.csv"):
 
     # Features used to predict are defined
     features = [
-        # "Bet365HomeWinOdds",
-        # "Bet365DrawOdds",
-        # "Bet365AwayWinOdds",
-        # "Bet365HomeWinOddsPercentage",
-        # "Bet365DrawOddsPercentage",
-        # "Bet365AwayWinOddsPercentage",
+        "Bet365HomeWinOdds",
+        "Bet365DrawOdds",
+        "Bet365AwayWinOdds",
+        "Bet365HomeWinOddsPercentage",
+        "Bet365DrawOddsPercentage",
+        "Bet365AwayWinOddsPercentage",
         "OddsFavourHome",
         "OddsFavourDraw",
         "OddsFavourAway",
-        # "OddsDifference_HvA",
-        # "OddsDifference_HvD",
-        # "OddsDifference_AvD",
+        "OddsDifference_HvA",
+        "OddsDifference_HvD",
+        "OddsDifference_AvD",
         "HomeForm",
         "AwayForm",
         "HomeAdvantageIndex",
@@ -72,14 +74,13 @@ def run_random_forest(data_path = "data/features/eng1_data_combined.csv"):
         "HomeElo", 
         "AwayElo",
         "EloTierHome",
-        "EloTierAway",
+        "EloTierAway"
     ]
 
     X_train = train_df[features] # Features used for training
     y_train = train_df["ResultEncoded"] # Results used for training
     X_test = test_df[features] # Features used for testing
     y_test = test_df["ResultEncoded"] # Results used for testing
-
     use_feature_selection = True # Boolean variable which determines if feature selection is to be used
 
     base_model = RandomForestClassifier(random_state = 0) # A random forest model is initialised with a fixed random_state
@@ -169,12 +170,12 @@ def run_random_forest(data_path = "data/features/eng1_data_combined.csv"):
         X_train_selected = X_train.loc[:, selected_features] # Selects all rows and only the selected features for each row in the training set and stores them
         X_test_selected = X_test.loc[:, selected_features] # Selects all rows and only the selected features for each row in the testing set and stores them
 
-        pd.DataFrame({"Feature": selected_features}).to_csv("data/results/random forest/random_forest_selected_features.csv", index=False) # The selected features are stored in a csv file in the specified directory
-        print("Selected features saved to: data/results/random forest/random_forest_selected_features.csv") # Prints confirmation that the selected features have been stored
-
     best_model = None # Variable to store the best performing model
     best_score = 0 # Variable to store the best achieved score
     best_params = None # Variable to store parameters of the best model
+
+    pd.DataFrame({"Feature": selected_features}).to_csv("data/results/random forest/random_forest_selected_features.csv", index=False) # The features used for training are stored in a csv file in the specified directory
+    print("Selected features saved to: data/results/random forest/random_forest_selected_features.csv") # Prints confirmation that the features used for training have been stored
 
     for bootstrap_setting, space in bootstrap_spaces.items(): # Genetic algorithm is run for each bootstrap not to have compatibility issues
         print(f"Running Genetic Algorithm for Bootstrap: {bootstrap_setting}") # Confrimation message showing that the genetic algorithm is being run for that bootstrap setting
@@ -214,6 +215,10 @@ def run_random_forest(data_path = "data/features/eng1_data_combined.csv"):
     print("Genetic Algorithm Complete. Best Parameters:")
     print(best_params)
     print(f"Best Cross Validation F1: {best_score:.3f}")
+
+    model_output_path = Path("data/results/random forest/random_forest_best_model.joblib") # The model output directory path is stored
+    dump(best_model, model_output_path) # The model is saved in the specified output path
+    print(f"Best model saved to: {model_output_path}") # A confirmation message showing where the model was saved is printed
 
     preds, test_df = predict_2023_with_elo_updates(model=best_model, test_df=test_df, feature_columns=selected_features) # Predicted outcomes are generated with Elo updated after each predicted fixture
 

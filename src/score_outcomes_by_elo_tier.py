@@ -1,4 +1,6 @@
 import math
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 from src.utils import ensure_dirs, save_csv
