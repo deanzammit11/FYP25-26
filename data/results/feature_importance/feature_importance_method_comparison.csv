@@ -1,0 +1,171 @@
+Model,Method,Feature,ImportanceValue
+Logistic Regression,Permutation Importance,AwayElo,0.05231697991258345
+Logistic Regression,Permutation Importance,HomeFifaOverall,0.015557668044663454
+Logistic Regression,Permutation Importance,AwayFifaOverall,0.013429250956424088
+Logistic Regression,Permutation Importance,OddsDifference_HvD,0.012738205694524288
+Logistic Regression,Permutation Importance,Bet365HomeWinOddsPercentage,0.011305349805716916
+Logistic Regression,Permutation Importance,AwayFifaAttack,0.009738342683901124
+Logistic Regression,Permutation Importance,Bet365AwayWinOddsPercentage,0.008064215508450443
+Logistic Regression,Permutation Importance,HomeFifaMidfield,0.00776803668554652
+Logistic Regression,Permutation Importance,OddsDifference_AvD,0.00747552016164571
+Logistic Regression,Permutation Importance,TotalGoalsScoredHome,0.0044401220724189115
+Logistic Regression,Permutation Importance,OddsFavourAway,0.004299066825262899
+Logistic Regression,Permutation Importance,TotalGoalsScoredAway,0.0020860702595225907
+Logistic Regression,Permutation Importance,HomeFifaDefence,0.000808129917658007
+Logistic Regression,Permutation Importance,Bet365DrawOddsPercentage,-8.600266462399086e-05
+Logistic Regression,Permutation Importance,AverageGoalsScoredAtAway,-0.000177715979538412
+Logistic Regression,Permutation Importance,TotalGoalsConcededAway,-0.001389043325557135
+Logistic Regression,Permutation Importance,TotalGoalsConcededHome,-0.0016362832815251054
+Logistic Regression,Permutation Importance,AwayFifaMidfield,-0.0020645182289231456
+Logistic Regression,Permutation Importance,TotalDrawsAway,-0.002189789988629065
+Logistic Regression,Permutation Importance,OddsFavourHome,-0.002655853746442302
+Logistic Regression,Permutation Importance,AwayGeneralForm,-0.006750913209907672
+Logistic Regression,Permutation Importance,EloTierAway,-0.0070022549578279
+Logistic Regression,Permutation Importance,AwayForm,-0.008681475561976511
+Logistic Regression,Permutation Importance,HistoricalEncountersHome,-0.012702834262164942
+Logistic Regression,Permutation Importance,WinStreakAway,-0.013462607875611746
+Logistic Regression,Standardized Coefficients,AwayElo,0.24119948303591424
+Logistic Regression,Standardized Coefficients,AwayFifaOverall,0.2007636435522655
+Logistic Regression,Standardized Coefficients,OddsFavourHome,0.13368926814747953
+Logistic Regression,Standardized Coefficients,EloTierAway,0.12002339867380672
+Logistic Regression,Standardized Coefficients,OddsFavourAway,0.11251480267676184
+Logistic Regression,Standardized Coefficients,Bet365AwayWinOddsPercentage,0.10800862110660259
+Logistic Regression,Standardized Coefficients,HomeFifaOverall,0.10617684572156338
+Logistic Regression,Standardized Coefficients,Bet365HomeWinOddsPercentage,0.10349638914008256
+Logistic Regression,Standardized Coefficients,HomeFifaMidfield,0.10142868516345087
+Logistic Regression,Standardized Coefficients,OddsDifference_HvD,0.09682901906502461
+Logistic Regression,Standardized Coefficients,AwayFifaMidfield,0.09123386391996917
+Logistic Regression,Standardized Coefficients,AwayFifaAttack,0.07472952924165037
+Logistic Regression,Standardized Coefficients,WinStreakAway,0.07264087816490927
+Logistic Regression,Standardized Coefficients,OddsDifference_AvD,0.07081768089054925
+Logistic Regression,Standardized Coefficients,TotalDrawsAway,0.05479649964884337
+Logistic Regression,Standardized Coefficients,TotalGoalsConcededHome,0.051058051456132236
+Logistic Regression,Standardized Coefficients,AwayGeneralForm,0.04342091180615421
+Logistic Regression,Standardized Coefficients,TotalGoalsScoredHome,0.042441990672423
+Logistic Regression,Standardized Coefficients,TotalGoalsScoredAway,0.03678942722515654
+Logistic Regression,Standardized Coefficients,AverageGoalsScoredAtAway,0.035680887320431266
+Logistic Regression,Standardized Coefficients,HistoricalEncountersHome,0.03197622808488578
+Logistic Regression,Standardized Coefficients,AwayForm,0.030472929927801765
+Logistic Regression,Standardized Coefficients,TotalGoalsConcededAway,0.027337587719114247
+Logistic Regression,Standardized Coefficients,HomeFifaDefence,0.023887788901149093
+Logistic Regression,Standardized Coefficients,Bet365DrawOddsPercentage,0.0171524050132808
+Random Forest,Permutation Importance,Bet365DrawOddsPercentage,0.012908534134320268
+Random Forest,Permutation Importance,HomeFifaOverall,0.004071450408983981
+Random Forest,Permutation Importance,AverageGoalsScoredAtAway,0.0025877281523552288
+Random Forest,Permutation Importance,TotalDrawsHome,0.002582806880441146
+Random Forest,Permutation Importance,TotalGoalsConcededAway,0.002213104536147237
+Random Forest,Permutation Importance,TotalDrawsAway,0.0013566100777793217
+Random Forest,Permutation Importance,AwayGeneralForm,0.0011233299263943535
+Random Forest,Permutation Importance,TotalWinsAway,0.0008954841849058897
+Random Forest,Permutation Importance,EloTierAway,0.0006001996046154673
+Random Forest,Permutation Importance,HomeFifaAttack,0.0005632811735056392
+Random Forest,Permutation Importance,HomeFifaMidfield,0.000238834195885701
+Random Forest,Permutation Importance,WinStreakAway,0.00017004480030737013
+Random Forest,Permutation Importance,OddsFavourDraw,0.0
+Random Forest,Permutation Importance,LossStreakHome,-0.00029694843194103535
+Random Forest,Permutation Importance,AwayFifaMidfield,-0.00048512547907294255
+Random Forest,Permutation Importance,TotalLossesAway,-0.0011898945652121574
+Random Forest,Permutation Importance,HomeForm,-0.001588737453612668
+Random Forest,Permutation Importance,TotalGoalsConcededHome,-0.002482681662562103
+Random Forest,Permutation Importance,HistoricalEncountersAway,-0.0028124882261305385
+Random Forest,Permutation Importance,OddsFavourAway,-0.0036722946225330455
+Random Forest,Permutation Importance,EloTierHome,-0.0047123664570973
+Random Forest,Permutation Importance,OddsDifference_AvD,-0.0071694994961381845
+Random Forest,Permutation Importance,HomeElo,-0.008374064518249255
+Random Forest,Permutation Importance,AwayFifaDefence,-0.008412371485304196
+Random Forest,Permutation Importance,Bet365AwayWinOddsPercentage,-0.008632669881301255
+Random Forest,Permutation Importance,Bet365HomeWinOddsPercentage,-0.00930140205846341
+Random Forest,Permutation Importance,OddsDifference_HvD,-0.01161551660518422
+Random Forest,Permutation Importance,OddsDifference_HvA,-0.01375423407867323
+Random Forest,SHAP,OddsDifference_HvA,0.022432313414048798
+Random Forest,SHAP,Bet365HomeWinOddsPercentage,0.021375938948985863
+Random Forest,SHAP,OddsDifference_AvD,0.02005885920455142
+Random Forest,SHAP,OddsDifference_HvD,0.019669292130377287
+Random Forest,SHAP,Bet365AwayWinOddsPercentage,0.017798344394412333
+Random Forest,SHAP,Bet365DrawOddsPercentage,0.012544029640083242
+Random Forest,SHAP,OddsFavourAway,0.007762706839923747
+Random Forest,SHAP,HomeElo,0.0076737233160084975
+Random Forest,SHAP,HomeFifaAttack,0.004800551396484314
+Random Forest,SHAP,HomeFifaOverall,0.0047541155304308205
+Random Forest,SHAP,TotalGoalsConcededAway,0.0035784975595603064
+Random Forest,SHAP,TotalGoalsConcededHome,0.003517683374184392
+Random Forest,SHAP,HistoricalEncountersAway,0.00290528592851031
+Random Forest,SHAP,AwayFifaDefence,0.002872989692365583
+Random Forest,SHAP,TotalWinsAway,0.002503079853798432
+Random Forest,SHAP,EloTierHome,0.0024768748710639705
+Random Forest,SHAP,TotalLossesAway,0.0024632149628947566
+Random Forest,SHAP,HomeForm,0.001824392882578481
+Random Forest,SHAP,WinStreakAway,0.0017611079423605
+Random Forest,SHAP,AverageGoalsScoredAtAway,0.0017429102842845452
+Random Forest,SHAP,EloTierAway,0.0017262165084581554
+Random Forest,SHAP,HomeFifaMidfield,0.001546208598134503
+Random Forest,SHAP,AwayFifaMidfield,0.0014551813059945566
+Random Forest,SHAP,TotalDrawsHome,0.0007930901912427617
+Random Forest,SHAP,LossStreakHome,0.0007323119695087642
+Random Forest,SHAP,AwayGeneralForm,0.0007018491017307546
+Random Forest,SHAP,TotalDrawsAway,0.0006691400401268686
+Random Forest,SHAP,OddsFavourDraw,0.0
+XGBoost,Permutation Importance,Bet365AwayWinOddsPercentage,0.050575752862746716
+XGBoost,Permutation Importance,Bet365HomeWinOddsPercentage,0.04078892916567588
+XGBoost,Permutation Importance,OddsDifference_HvD,0.023531990341379365
+XGBoost,Permutation Importance,AverageGoalsScoredAtAway,0.022681236592101604
+XGBoost,Permutation Importance,Bet365HomeWinOdds,0.01934345658122547
+XGBoost,Permutation Importance,HomeFifaAttack,0.016745418530784782
+XGBoost,Permutation Importance,GeneralFormDifference,0.016485814793825902
+XGBoost,Permutation Importance,HomeFifaDefence,0.016415137105454065
+XGBoost,Permutation Importance,AwayGeneralForm,0.01134550675065053
+XGBoost,Permutation Importance,Bet365DrawOdds,0.01063812983608907
+XGBoost,Permutation Importance,LossStreakAway,0.009920475572456192
+XGBoost,Permutation Importance,AverageGoalsConcededAtHome,0.007540289078273271
+XGBoost,Permutation Importance,AwayFifaMidfield,0.007042182763849022
+XGBoost,Permutation Importance,Bet365DrawOddsPercentage,0.0066136082028690315
+XGBoost,Permutation Importance,EloTierAway,0.004715831955181151
+XGBoost,Permutation Importance,TotalGoalsConcededAway,0.0034390270996345037
+XGBoost,Permutation Importance,AwayForm,0.0017194914458071031
+XGBoost,Permutation Importance,HistoricalEncountersAway,0.001367423224918396
+XGBoost,Permutation Importance,HistoricalEncountersHome,0.0006815437209950232
+XGBoost,Permutation Importance,OddsFavourAway,0.0
+XGBoost,Permutation Importance,OddsFavourDraw,0.0
+XGBoost,Permutation Importance,TotalGoalsScoredAway,-0.0005955404939318954
+XGBoost,Permutation Importance,HomeAdvantageIndex,-0.0007092042879320304
+XGBoost,Permutation Importance,HomeForm,-0.0015183097932608442
+XGBoost,Permutation Importance,TotalGoalsConcededHome,-0.002984427702527423
+XGBoost,Permutation Importance,EloTierHome,-0.0036804043582943395
+XGBoost,Permutation Importance,HomeGeneralForm,-0.0041731544866552926
+XGBoost,Permutation Importance,HomeFifaMidfield,-0.004818745137669969
+XGBoost,Permutation Importance,AwayFifaDefence,-0.005895429052858267
+XGBoost,Permutation Importance,WinStreakHome,-0.007948231838407604
+XGBoost,Permutation Importance,WinStreakAway,-0.009350044096281998
+XGBoost,Permutation Importance,TotalDrawsAway,-0.012678206916780649
+XGBoost,SHAP,Bet365AwayWinOddsPercentage,0.15140190304446716
+XGBoost,SHAP,Bet365HomeWinOddsPercentage,0.12786248604886905
+XGBoost,SHAP,OddsDifference_HvD,0.0967972585963778
+XGBoost,SHAP,AverageGoalsConcededAtHome,0.09216764371329374
+XGBoost,SHAP,Bet365DrawOddsPercentage,0.09004059597332523
+XGBoost,SHAP,TotalGoalsScoredAway,0.08776666617693196
+XGBoost,SHAP,HomeFifaAttack,0.0840527537277819
+XGBoost,SHAP,HomeAdvantageIndex,0.0835191451267038
+XGBoost,SHAP,HistoricalEncountersHome,0.07841635159617688
+XGBoost,SHAP,HomeForm,0.07818995892574951
+XGBoost,SHAP,TotalGoalsConcededHome,0.07776897055055286
+XGBoost,SHAP,GeneralFormDifference,0.07636263975057946
+XGBoost,SHAP,HistoricalEncountersAway,0.07386953895786778
+XGBoost,SHAP,AverageGoalsScoredAtAway,0.06890518939122248
+XGBoost,SHAP,TotalGoalsConcededAway,0.06560069714842995
+XGBoost,SHAP,Bet365DrawOdds,0.05701172882693324
+XGBoost,SHAP,Bet365HomeWinOdds,0.05457859913765558
+XGBoost,SHAP,WinStreakAway,0.05283620149357817
+XGBoost,SHAP,HomeFifaMidfield,0.04932580435533212
+XGBoost,SHAP,AwayFifaDefence,0.046385739637715244
+XGBoost,SHAP,TotalDrawsAway,0.04530455368589404
+XGBoost,SHAP,AwayFifaMidfield,0.039286871118888046
+XGBoost,SHAP,EloTierHome,0.03925959669865525
+XGBoost,SHAP,AwayGeneralForm,0.039190312123914856
+XGBoost,SHAP,HomeFifaDefence,0.037944440874489005
+XGBoost,SHAP,AwayForm,0.03703013375731182
+XGBoost,SHAP,HomeGeneralForm,0.033726373870693764
+XGBoost,SHAP,WinStreakHome,0.026460923942771546
+XGBoost,SHAP,LossStreakAway,0.024789947855659026
+XGBoost,SHAP,EloTierAway,0.018564517487505032
+XGBoost,SHAP,OddsFavourAway,0.0
+XGBoost,SHAP,OddsFavourDraw,0.0

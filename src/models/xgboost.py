@@ -2,6 +2,8 @@ import numpy as np
 import pandas as pd
 import random
 import os
+from pathlib import Path
+from joblib import dump
 from xgboost import XGBClassifier
 from sklearn.model_selection import StratifiedGroupKFold
 from sklearn.metrics import make_scorer, f1_score
@@ -22,18 +24,18 @@ def run_xgboost(data_path = "data/features/eng1_data_combined.csv"):
 
     # Features used to predict are defined
     features = [
-        # "Bet365HomeWinOdds",
-        # "Bet365DrawOdds",
-        # "Bet365AwayWinOdds",
-        # "Bet365HomeWinOddsPercentage",
-        # "Bet365DrawOddsPercentage",
-        # "Bet365AwayWinOddsPercentage",
+        "Bet365HomeWinOdds",
+        "Bet365DrawOdds",
+        "Bet365AwayWinOdds",
+        "Bet365HomeWinOddsPercentage",
+        "Bet365DrawOddsPercentage",
+        "Bet365AwayWinOddsPercentage",
         "OddsFavourHome",
         "OddsFavourDraw",
         "OddsFavourAway",
-        # "OddsDifference_HvA",
-        # "OddsDifference_HvD",
-        # "OddsDifference_AvD",
+        "OddsDifference_HvA",
+        "OddsDifference_HvD",
+        "OddsDifference_AvD",
         "HomeForm",
         "AwayForm",
         "HomeAdvantageIndex",
@@ -72,7 +74,7 @@ def run_xgboost(data_path = "data/features/eng1_data_combined.csv"):
         "HomeElo", 
         "AwayElo",
         "EloTierHome",
-        "EloTierAway",
+        "EloTierAway"
     ]
 
     X_train = train_df[features] # Features used for training
@@ -177,8 +179,8 @@ def run_xgboost(data_path = "data/features/eng1_data_combined.csv"):
         X_train_selected = X_train.loc[:, selected_features] # Selects all rows and only the selected features for each row in the training set and stores them
         X_test_selected = X_test.loc[:, selected_features] # Selects all rows and only the selected features for each row in the testing set and stores them
 
-        pd.DataFrame({"Feature": selected_features}).to_csv("data/results/xgboost/xgboost_selected_features.csv", index=False) # The selected features are stored in a csv file in the specified directory
-        print("Selected features saved to: data/results/xgboost/xgboost_selected_features.csv") # Prints confirmation that the selected features have been stored
+    pd.DataFrame({"Feature": selected_features}).to_csv("data/results/xgboost/xgboost_selected_features.csv", index=False) # The features used for training are stored in a csv file in the specified directory
+    print("Selected features saved to: data/results/xgboost/xgboost_selected_features.csv") # Prints confirmation that the features used for training have been stored
 
     ga_search = GASearchCV( # Grid search is setup to find the best combination of parameters through cross validation
         estimator = base_model, # The model which is being optmised
@@ -203,8 +205,12 @@ def run_xgboost(data_path = "data/features/eng1_data_combined.csv"):
     print(ga_search.best_params_) # Best parameters found from the genetic algorithm are printed
     print(f"Best Cross Validation F1: {ga_search.best_score_:.3f}") # Best cross validation F1 score is printed
 
-    model = ga_search.best_estimator_ # Model trained using the best parameters is retrieved
-    preds, test_df = predict_2023_with_elo_updates(model=model, test_df=test_df, feature_columns=selected_features, prediction_to_result=lambda pred: int(pred) - 1) # Predicted outcomes are generated with Elo updated after each predicted fixture
+    best_model = ga_search.best_estimator_ # Model trained using the best parameters is retrieved
+    model_output_path = Path("data/results/xgboost/xgboost_best_model.joblib") # The model output directory path is stored
+    dump(best_model, model_output_path) # The model is saved in the specified output path
+    print(f"Best model saved to: {model_output_path}") # A confirmation message showing where the model was saved is printed
+
+    preds, test_df = predict_2023_with_elo_updates(model=best_model, test_df=test_df, feature_columns=selected_features, prediction_to_result=lambda pred: int(pred) - 1) # Predicted outcomes are generated with Elo updated after each predicted fixture
     y_test = y_test - 1 # Subtracting 1 to convert testing outcomes back to the original format
 
     results = evaluate_model("XGBoost", y_test, preds) # Model performance is evaluated and stored in results
@@ -214,7 +220,7 @@ def run_xgboost(data_path = "data/features/eng1_data_combined.csv"):
     out["Predicted"] = preds # Add a predicted column to the dataframe
     out.to_csv("data/results/xgboost/xgboost_2023_predictions.csv", index = False) # Converts the final dataframe to csv and appends it to existing csv or stores it in new csv
     print("Predictions saved to: data/results/xgboost/xgboost_2023_predictions.csv") # Prints confirmation that the results have been stored
-    return model, results # Returns the trained model and the respective results
+    return best_model, results # Returns the trained model and the respective results
 
 if __name__ == "__main__":
     run_xgboost()

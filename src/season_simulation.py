@@ -1,5 +1,7 @@
 from pathlib import Path
 from src.utils import ensure_dirs, extract_model_name_from_filename
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 
