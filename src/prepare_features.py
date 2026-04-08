@@ -29,12 +29,13 @@ def prepare_features():
     df["OddsFavourDraw"] = df["Bet365DrawOdds"].eq(favourite_odds).astype(int) # It is checked if the draw odds match the favourite odds and if they match true is returned which is then converted into an integer becoming a 1 or 0 if false
     df["OddsFavourAway"] = df["Bet365AwayWinOdds"].eq(favourite_odds).astype(int) # It is checked if the away odds match the favourite odds and if they match true is returned which is then converted into an integer becoming a 1 or 0 if false
 
-    df["OddsDifference_HvA"] = (df["Bet365HomeWinOddsPercentage"] - df["Bet365AwayWinOddsPercentage"]) # Home vs away odds difference without absolute value
-    df["OddsDifference_HvD"] = (df["Bet365HomeWinOddsPercentage"] - df["Bet365DrawOddsPercentage"]) # Home vs draw odds difference without absolute value
-    df["OddsDifference_AvD"] = (df["Bet365AwayWinOddsPercentage"] - df["Bet365DrawOddsPercentage"]) # Away vs draw odds difference without absolute value
-    # df["OddsDifference_HvA"] = (df["Bet365HomeWinOddsPercentage"] - df["Bet365AwayWinOddsPercentage"]).abs() # Home vs away odds difference with absolute value
-    # df["OddsDifference_HvD"] = (df["Bet365HomeWinOddsPercentage"] - df["Bet365DrawOddsPercentage"]).abs() # Home vs draw odds difference with absolute value
-    # df["OddsDifference_AvD"] = (df["Bet365AwayWinOddsPercentage"] - df["Bet365DrawOddsPercentage"]).abs() # Away vs draw odds difference with absolute value
+    df["OddsDifference_HvA"] = (df["Bet365HomeWinOdds"] - df["Bet365AwayWinOdds"]) # Home vs away raw odds difference without absolute value
+    df["OddsDifference_HvD"] = (df["Bet365HomeWinOdds"] - df["Bet365DrawOdds"]) # Home vs draw raw odds difference without absolute value
+    df["OddsDifference_AvD"] = (df["Bet365AwayWinOdds"] - df["Bet365DrawOdds"]) # Away vs draw raw odds difference without absolute value
+    df["DrawLikelihood"] = 1 / df["Bet365DrawOdds"] # Bookmaker probability of a draw before margin normalisation
+    # df["OddsDifference_HvA"] = (df["Bet365HomeWinOdds"] - df["Bet365AwayWinOdds"]).abs() # Home vs away raw odds difference with absolute value
+    # df["OddsDifference_HvD"] = (df["Bet365HomeWinOdds"] - df["Bet365DrawOdds"]).abs() # Home vs draw raw odds difference with absolute value
+    # df["OddsDifference_AvD"] = (df["Bet365AwayWinOdds"] - df["Bet365DrawOdds"]).abs() # Away vs draw raw odds difference with absolute value
 
     odds_cols = [ # Columns to store in odds csv file are selected
         "Season", "Date", "HomeTeam", "AwayTeam", "ResultEncoded",
@@ -111,6 +112,18 @@ def prepare_features():
         previous_away_conceded.groupby([df["Season"], df["AwayTeam"]]).cumsum() / away_team_groups.cumcount().replace(0, pd.NA) # The cumulative sum of the goals conceded by the away team away from home up to and excluding the current match is divded by the number of rows which have appeared in the group with zeros being replaced with NA since you cannot divide by 0
     ).fillna(0) # Null values are replaced with 0 where the first match is always 0
 
+    previous_home_shots_on_target = home_team_groups["HomeTeamShotsonTarget"].shift() # The values of the shots on target by the home team at home are shifted one row downwards
+    df["AverageShotsOnTargetAtHome"] = (
+        previous_home_shots_on_target.groupby([df["Season"], df["HomeTeam"]]).cumsum() / home_team_groups.cumcount().replace(0, pd.NA) # The cumulative average of shots on target by the home team up to and excluding the current match is divded by the number of rows which have appeared in the group with zeros being replaced with NA since you cannot divide by 0
+    ).fillna(0) # Null values are replaced with 0 for the first match
+
+    previous_away_shots_on_target = away_team_groups["AwayTeamShotsonTarget"].shift() # The values of shots on target by the away team away from home are shifted one row downwards
+    df["AverageShotsOnTargetAtAway"] = (
+        previous_away_shots_on_target.groupby([df["Season"], df["AwayTeam"]]).cumsum() / away_team_groups.cumcount().replace(0, pd.NA) # The cumulative average of shots on target by the away team away from home up to and excluding the current match is divded by the number of rows which have appeared in the group with zeros being replaced with NA since you cannot divide by 0
+    ).fillna(0) # Null values are replaced with 0 for the first match
+
+    df["ShotsOnTargetDifference"] = df["AverageShotsOnTargetAtHome"] - df["AverageShotsOnTargetAtAway"] # Average shots on target difference between home and away teams
+
     team_home_records = pd.DataFrame({ # A dataframe storing the season, date, team, goals scored and conceded and match index of the home team for each fixture is created
         "Season": df["Season"],
         "Date": df["Date"],
@@ -158,7 +171,7 @@ def prepare_features():
     team_records["TotalWins"] = team_groups["TotalWins"].shift().fillna(0) # Each team's TotalWins value is shifted one game back with null values being assigned as zero
     team_records["TotalDraws"] = team_groups["TotalDraws"].shift().fillna(0) # Each team's TotalDraws value is shifted one game back with null values being assigned as zero
     team_records["TotalLosses"] = team_groups["TotalLosses"].shift().fillna(0) # Each team's TotalLosses value is shifted one game back with null values being assigned as zero
-    
+
     home_totals = team_records[team_records["IsHome"]].set_index("MatchIndex") # The rows were IsHome is true are stored and their index is set to the original row number
     away_totals = team_records[~team_records["IsHome"]].set_index("MatchIndex") # The rows were IsHome is false are stored and their index is set to the original row number
 
@@ -177,7 +190,7 @@ def prepare_features():
     df["TotalWinsAway"] = away_totals["TotalWins"].reindex(df.index).fillna(0) # The TotalWins for the away side is stored in df while reindexing to contain the full index of df with instances where there were no prior values for that away fixture being filled with 0
     df["TotalDrawsAway"] = away_totals["TotalDraws"].reindex(df.index).fillna(0) # The TotalDraws for the away side is stored in df while reindexing to contain the full index of df with instances where there were no prior values for that away fixture being filled with 0
     df["TotalLossesAway"] = away_totals["TotalLosses"].reindex(df.index).fillna(0) # The TotalLosses for the away side is stored in df while reindexing to contain the full index of df with instances where there were no prior values for that away fixture being filled with 0
-
+    
     home_records = pd.DataFrame({ # A data frame consisting of 5 columns to store the records for the home side is built
         "Team": df["HomeTeam"], # Team name is the name of the home team
         "Opponent": df["AwayTeam"], # Opponent is the name of the away team
@@ -211,6 +224,8 @@ def prepare_features():
         "AverageGoalsConcededAtHome", "AverageGoalsConcededAtAway",
         "TotalGoalsScoredHome", "TotalGoalsScoredAway",
         "TotalGoalsConcededHome", "TotalGoalsConcededAway",
+        "AverageShotsOnTargetAtHome", "AverageShotsOnTargetAtAway",
+        "ShotsOnTargetDifference",
         "WinStreakHome", "WinStreakAway",
         "LossStreakHome", "LossStreakAway",
         "TotalWinsHome", "TotalWinsAway",
@@ -369,12 +384,20 @@ def prepare_features():
 
     df = add_elo_features(df) # Elo features are added to df
 
+    df["EloDifference"] = df["HomeElo"] - df["AwayElo"] # Elo rating difference between home and away team
+    df["FifaOverallDifference"] = df["HomeFifaOverall"] - df["AwayFifaOverall"] # FIFA overall rating difference between home and away team
+    df["FifaAttackDifference"] = df["HomeFifaAttack"] - df["AwayFifaAttack"] # FIFA attack rating difference between home and away team
+    df["FifaDefenceDifference"] = df["HomeFifaDefence"] - df["AwayFifaDefence"] # FIFA defence rating difference between home and away team
+    df["FifaMidfieldDifference"] = df["HomeFifaMidfield"] - df["AwayFifaMidfield"] # FIFA midfield rating difference between home and away team
+
     ratings_cols = [ # Columns to store in form csv file are selected
         "Season", "FifaVersion", "Date", "HomeTeam", "AwayTeam", "ResultEncoded",
         "HomeFifaOverall", "HomeFifaAttack", "HomeFifaMidfield", "HomeFifaDefence",
         "AwayFifaOverall", "AwayFifaAttack", "AwayFifaMidfield", "AwayFifaDefence",
-        "HFA", "HomeElo", "AwayElo", 
+        "FifaOverallDifference", "FifaAttackDifference", "FifaDefenceDifference", "FifaMidfieldDifference",
+        "HFA", "HomeElo", "AwayElo",
         "EloTierHome", "EloTierAway",
+        "EloDifference"
     ]
 
     df_ratings = df[ratings_cols].fillna(0) # Null values are replaced with 0
@@ -387,12 +410,15 @@ def prepare_features():
         "Bet365HomeWinOddsPercentage", "Bet365DrawOddsPercentage", "Bet365AwayWinOddsPercentage",
         "OddsFavourHome", "OddsFavourDraw", "OddsFavourAway",
         "OddsDifference_HvA", "OddsDifference_HvD", "OddsDifference_AvD",
+        "DrawLikelihood",
         "HomeForm", "AwayForm", "HomeAdvantageIndex",
         "HomeGeneralForm", "AwayGeneralForm", "GeneralFormDifference",
         "AverageGoalsScoredAtHome", "AverageGoalsScoredAtAway",
         "AverageGoalsConcededAtHome", "AverageGoalsConcededAtAway",
         "TotalGoalsScoredHome", "TotalGoalsScoredAway",
         "TotalGoalsConcededHome", "TotalGoalsConcededAway",
+        "AverageShotsOnTargetAtHome", "AverageShotsOnTargetAtAway",
+        "ShotsOnTargetDifference",
         "WinStreakHome", "WinStreakAway",
         "LossStreakHome", "LossStreakAway",
         "TotalWinsHome", "TotalWinsAway",
@@ -401,8 +427,10 @@ def prepare_features():
         "HistoricalEncountersHome", "HistoricalEncountersAway",
         "HomeFifaOverall", "HomeFifaAttack", "HomeFifaMidfield", "HomeFifaDefence",
         "AwayFifaOverall", "AwayFifaAttack", "AwayFifaMidfield", "AwayFifaDefence",
+        "FifaOverallDifference", "FifaAttackDifference", "FifaDefenceDifference", "FifaMidfieldDifference",
         "HFA", "HomeElo", "AwayElo",
         "EloTierHome", "EloTierAway",
+        "EloDifference"
     ]
     df_combined = df[modelling_cols].fillna(0) # Sets missing values to 0 since form cannot be calculated on first appearance
     save_csv(df_combined, "data/features/eng1_data_combined.csv") # Csv is saved into specified directory

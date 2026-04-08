@@ -1,4 +1,4 @@
 Model,MethodA,MethodB,Top10OverlapCount,SharedFeatures
-Logistic Regression,Permutation Importance,Standardized Coefficients,7,"AwayElo, AwayFifaOverall, Bet365AwayWinOddsPercentage, Bet365HomeWinOddsPercentage, HomeFifaMidfield, HomeFifaOverall, OddsDifference_HvD"
-Random Forest,Permutation Importance,SHAP,3,"Bet365DrawOddsPercentage, HomeFifaAttack, HomeFifaOverall"
-XGBoost,Permutation Importance,SHAP,4,"Bet365AwayWinOddsPercentage, Bet365HomeWinOddsPercentage, HomeFifaAttack, OddsDifference_HvD"
+Logistic Regression,Permutation Importance,Standardized Coefficients,8,"AwayElo, AwayFifaAttack, AwayFifaOverall, Bet365AwayWinOddsPercentage, EloTierAway, FifaAttackDifference, OddsFavourAway, OddsFavourHome"
+Random Forest,Permutation Importance,SHAP,5,"Bet365AwayWinOdds, Bet365AwayWinOddsPercentage, Bet365DrawOddsPercentage, Bet365HomeWinOddsPercentage, TotalGoalsConcededAway"
+XGBoost,Permutation Importance,SHAP,5,"Bet365AwayWinOddsPercentage, Bet365DrawOddsPercentage, OddsDifference_AvD, OddsDifference_HvD, TotalGoalsConcededAway"
