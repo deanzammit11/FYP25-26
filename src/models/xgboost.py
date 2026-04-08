@@ -7,11 +7,17 @@ from joblib import dump
 from xgboost import XGBClassifier
 from sklearn.model_selection import StratifiedGroupKFold
 from sklearn.metrics import make_scorer, f1_score
+from sklearn.utils.class_weight import compute_sample_weight
 from sklearn_genetic import GASearchCV, GAFeatureSelectionCV
 from sklearn_genetic.space import Categorical, Continuous, Integer
 from src.models.evaluate_models import evaluate_model, save_results
 from src.calculate_elo import predict_2023_with_elo_updates
 
+class BalancedXGBClassifier(XGBClassifier): # A class which inherits everything from XGBClassifier is defined
+    def fit(self, X, y, **kwargs): # A funtion which overrides the fit method with X being the training features, y the target labels and **kwargs any extra arguments which are passed
+        sample_weight = compute_sample_weight(class_weight="balanced", y=y) # Balanced sample weights are computed for each training row based on the frequency of the class
+        return super().fit(X, y, sample_weight=sample_weight, **kwargs) # The XGBClassier fit method is called taking the computed weights as the sample_weight
+    
 def run_xgboost(data_path = "data/features/eng1_data_combined.csv"):
     random_seed = 0 # Seed value is set to 0
     np.random.seed(random_seed) # Random seed for numpy random number generator is set
@@ -36,6 +42,7 @@ def run_xgboost(data_path = "data/features/eng1_data_combined.csv"):
         "OddsDifference_HvA",
         "OddsDifference_HvD",
         "OddsDifference_AvD",
+        "DrawLikelihood",
         "HomeForm",
         "AwayForm",
         "HomeAdvantageIndex",
@@ -60,7 +67,7 @@ def run_xgboost(data_path = "data/features/eng1_data_combined.csv"):
         "TotalDrawsAway",
         "TotalLossesHome",
         "TotalLossesAway",
-        "HistoricalEncountersHome", 
+        "HistoricalEncountersHome",
         "HistoricalEncountersAway",
         "HomeFifaOverall",
         "HomeFifaAttack",
@@ -71,19 +78,27 @@ def run_xgboost(data_path = "data/features/eng1_data_combined.csv"):
         "AwayFifaMidfield",
         "AwayFifaDefence",
         "HFA",
-        "HomeElo", 
+        "HomeElo",
         "AwayElo",
         "EloTierHome",
-        "EloTierAway"
+        "EloTierAway",
+        "EloDifference",
+        "FifaOverallDifference",
+        "FifaAttackDifference",
+        "FifaDefenceDifference",
+        "FifaMidfieldDifference",
+        "AverageShotsOnTargetAtHome",
+        "AverageShotsOnTargetAtAway",
+        "ShotsOnTargetDifference",
     ]
 
     X_train = train_df[features] # Features used for training
     y_train = train_df["ResultEncoded"] + 1 # Results used for training and adding 1 since xgboost requires match outcomes to be in the form of 0, 1 and 2 not -1, 0 and 1
     X_test = test_df[features] # Features used for testing
     y_test = test_df["ResultEncoded"] + 1 # Results used for testing and adding 1 since xgboost requires match outcomes to be in the form of 0, 1 and 2 not -1, 0 and 1
-    use_feature_selection = True # Boolean variable which determines if feature selection is to be used
+    use_feature_selection = False # Boolean variable which determines if feature selection is to be used
     
-    base_model = XGBClassifier(
+    base_model = BalancedXGBClassifier(
         objective = "multi:softprob", # Multi-class classification outputting class probabilities.
         num_class = 3, # Refers to 3 possible outcome classes
         eval_metric = "mlogloss", # Measures how well predicted probabilities match true labels.
@@ -102,7 +117,6 @@ def run_xgboost(data_path = "data/features/eng1_data_combined.csv"):
         "colsample_bytree": Continuous(0.6, 1.0, random_state=random_seed), # Fraction of features used by tree
         "reg_lambda": Continuous(0.1, 3.0, random_state=random_seed), # L2 regularisation term
         "reg_alpha": Continuous(0.0, 1.0, random_state=random_seed), # L1 regularisation term
-        "scale_pos_weight": Continuous(1.0, 1.5, random_state=random_seed), # Adjusts for class imbalance where 1 = no correction and 1.5 = slightly favors minority classes
         "grow_policy": Categorical(["depthwise"], random_state=random_seed) # Tree growth strategy
     }
 
@@ -143,7 +157,7 @@ def run_xgboost(data_path = "data/features/eng1_data_combined.csv"):
     if use_feature_selection: # If feature selection will be used
         print("Running Genetic Algorithm Feature Selection") # Print confirmation message that feature selection has started
 
-        feature_selection_estimator = XGBClassifier( # The model which will be used as an estimator to select features is defined
+        feature_selection_estimator = BalancedXGBClassifier( # The model which will be used as an estimator to select features is defined
             objective = "multi:softprob", # multi:softprob is selected as the objectivr for the basic model
             num_class = 3, # The number of classes is set to 3
             eval_metric = "mlogloss", # mlogloss is used as the evaluation metric
@@ -156,8 +170,8 @@ def run_xgboost(data_path = "data/features/eng1_data_combined.csv"):
             estimator = feature_selection_estimator, # The model which is being optimised
             scoring = make_scorer(f1_score, average="macro"), # Custom scoring function is used to compute fitness based on model f1 score
             cv = cv_splits, # Previously defined StratifiedGroupKFold cross validator grouped by season
-            population_size = 25, # Number of individuals in each generation
-            generations = 15, # Number of generations that the algorithm will evolve through
+            population_size = 50, # Number of individuals in each generation
+            generations = 30, # Number of generations that the algorithm will evolve through
             n_jobs = -1, # All CPU cores are utilised
             verbose = True, # Progress is displayed in terminal
             keep_top_k = 4, # 4 best performing individuals from each generation are kept

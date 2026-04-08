@@ -367,6 +367,8 @@ def predict_2023_with_elo_updates(model, test_df, feature_columns, prediction_to
 
             test_df.at[idx, "HomeElo"] = home_rating # The latest home Elo before the fixture is stored at the fixture index of test_df
             test_df.at[idx, "AwayElo"] = away_rating # The latest away Elo before the fixture is stored at the fixture index of test_df
+            if "EloDifference" in test_df.columns: # If Elo difference is part of the features in the test dataframe
+                test_df.at[idx, "EloDifference"] = home_rating - away_rating # The latest Elo difference before the fixture is stored at the fixture index of test_df
             test_df.at[idx, "EloTierHome"] = 1 if home_rating >= 1900 else 2 if home_rating >= 1800 else 3 if home_rating >= 1700 else 4 # The latest Elo tier for the home side before the fixture is stored at the fixture index of test_df
             test_df.at[idx, "EloTierAway"] = 1 if away_rating >= 1900 else 2 if away_rating >= 1800 else 3 if away_rating >= 1700 else 4 # The latest Elo tier for the away side before the fixture is stored at the fixture index of test_df
 

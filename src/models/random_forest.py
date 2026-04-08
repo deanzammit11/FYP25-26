@@ -36,6 +36,7 @@ def run_random_forest(data_path = "data/features/eng1_data_combined.csv"):
         "OddsDifference_HvA",
         "OddsDifference_HvD",
         "OddsDifference_AvD",
+        "DrawLikelihood",
         "HomeForm",
         "AwayForm",
         "HomeAdvantageIndex",
@@ -60,7 +61,7 @@ def run_random_forest(data_path = "data/features/eng1_data_combined.csv"):
         "TotalDrawsAway",
         "TotalLossesHome",
         "TotalLossesAway",
-        "HistoricalEncountersHome", 
+        "HistoricalEncountersHome",
         "HistoricalEncountersAway",
         "HomeFifaOverall",
         "HomeFifaAttack",
@@ -71,10 +72,18 @@ def run_random_forest(data_path = "data/features/eng1_data_combined.csv"):
         "AwayFifaMidfield",
         "AwayFifaDefence",
         "HFA",
-        "HomeElo", 
+        "HomeElo",
         "AwayElo",
         "EloTierHome",
-        "EloTierAway"
+        "EloTierAway",
+        "EloDifference",
+        "FifaOverallDifference",
+        "FifaAttackDifference",
+        "FifaDefenceDifference",
+        "FifaMidfieldDifference",
+        # "AverageShotsOnTargetAtHome",
+        # "AverageShotsOnTargetAtAway",
+        # "ShotsOnTargetDifference",
     ]
 
     X_train = train_df[features] # Features used for training
@@ -147,8 +156,8 @@ def run_random_forest(data_path = "data/features/eng1_data_combined.csv"):
             estimator = feature_selection_estimator, # The model which is being optimised
             scoring = make_scorer(f1_score, average="macro"), # Custom scoring function is used to compute fitness based on model f1 score
             cv = cv_splits, # Previously defined StratifiedGroupKFold cross validator grouped by season
-            population_size = 25, # Number of individuals in each generation
-            generations = 15, # Number of generations that the algorithm will evolve through
+            population_size = 50, # Number of individuals in each generation
+            generations = 30, # Number of generations that the algorithm will evolve through
             n_jobs = -1, # All CPU cores are utilised
             verbose = True, # Progress is displayed in terminal
             keep_top_k = 4, # 4 best performing individuals from each generation are kept
@@ -181,7 +190,7 @@ def run_random_forest(data_path = "data/features/eng1_data_combined.csv"):
         print(f"Running Genetic Algorithm for Bootstrap: {bootstrap_setting}") # Confrimation message showing that the genetic algorithm is being run for that bootstrap setting
 
         base_model = RandomForestClassifier(random_state = 0) # A random forest model is initialised with a fixed random_state
-        
+
         if bootstrap_setting == "False": # If bootstrap is False max_samples is set to None
             base_model.set_params(max_samples=None)
 
