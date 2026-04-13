@@ -6,6 +6,7 @@ from pathlib import Path
 from joblib import dump
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
+from sklearn.base import clone
 from sklearn.model_selection import StratifiedGroupKFold
 from sklearn.metrics import make_scorer, f1_score
 from sklearn.pipeline import Pipeline
@@ -250,6 +251,24 @@ def run_logistic_regression(data_path = "data/features/eng1_data_combined.csv"):
     model_output_path = Path("data/results/logistic regression/logistic_regression_best_model.joblib") # The model output directory path is stored
     dump(best_model, model_output_path) # The model is saved in the specified output path
     print(f"Best model saved to: {model_output_path}") # A confirmation message showing where the model was saved is printed
+
+    fold_seasons = sorted(train_df["Season"].unique())[1:] # The seasons which require the fold predictions to be stored are stored in a list excluding the first season since no training data would be available
+    for fold_season in fold_seasons: # For each fold season
+        fold_train_idx = np.where((train_df["Season"] < fold_season).values)[0] # The positional row indices of all rows before the fold prediction year are stored
+        fold_validation_idx = np.where((train_df["Season"] == fold_season).values)[0] # The positional row indices of all rows in the fold validation year are stored
+        fold_model = clone(best_model) # An untrained copy of the best model with the same tuned parameters is created
+        fold_model.fit(X_train_selected.iloc[fold_train_idx], y_train.iloc[fold_train_idx]) # The model for that specific fold is trained only on data from seasons before the fold prediction year
+        fold_out = train_df.iloc[fold_validation_idx].copy().reset_index(drop=True) # Validation rows for the fold prediction year are copied and stored in a dataframe and the index is reset
+        fold_predictions = fold_model.predict(X_train_selected.iloc[fold_validation_idx]) # Predictions for the fold prediction year are generated
+        fold_probabilities = fold_model.predict_proba(X_train_selected.iloc[fold_validation_idx]) # Class probabilities for the fold prediction year are generated
+        fold_classes = list(fold_model.classes_) # The class labels are stored in a list
+        fold_out["Predicted"] = fold_predictions # Predicted outcomes are added to the validation rows dataframe
+        fold_out["ProbHome"] = fold_probabilities[:, fold_classes.index(1)] # Home win probability is added to the validation rows dataframe
+        fold_out["ProbDraw"] = fold_probabilities[:, fold_classes.index(0)] # Draw probability is added to the validation rows dataframe
+        fold_out["ProbAway"] = fold_probabilities[:, fold_classes.index(-1)] # Away win probability is added to the validation rows dataframe
+        season_path = f"data/results/logistic regression/logistic_regression_{fold_season}_predictions.csv" # The path where to store the predictions csv is stored
+        fold_out.sort_values("Date").reset_index(drop=True).to_csv(season_path, index=False) # Predictions are sorted by date resetting the index and are saved as csv in the specified directory
+        print(f"Predictions for {fold_season} saved to: {season_path}") # Confirmation message that the results for the fold season were saved is printed
 
     preds, test_df = predict_2023_with_elo_updates(model=best_model, test_df=test_df, feature_columns=selected_features) # Predicted outcomes are generated with Elo updated after each predicted fixture
 
