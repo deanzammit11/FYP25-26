@@ -1,0 +1,21 @@
+ActualPosition,Club,ActualPoints,SimulatedPosition,SimulatedPoints,PositionDifference
+1,Man City,91,1,114,0
+2,Arsenal,89,3,101,1
+3,Liverpool,82,2,106,-1
+4,Aston Villa,68,9,65,5
+5,Tottenham,66,5,85,0
+6,Chelsea,63,4,90,-2
+7,Man United,60,7,77,0
+8,Newcastle,60,6,82,-2
+9,West Ham,52,14,35,5
+10,Crystal Palace,49,13,35,3
+11,Bournemouth,48,11,38,0
+12,Brighton,48,8,70,-4
+13,Everton,48,10,39,-3
+14,Fulham,47,15,32,1
+15,Wolves,46,16,30,1
+16,Brentford,39,12,36,-4
+17,Nott'm Forest,36,17,24,0
+18,Luton,26,19,5,1
+19,Burnley,24,18,15,-1
+20,Sheffield United,16,20,2,0
