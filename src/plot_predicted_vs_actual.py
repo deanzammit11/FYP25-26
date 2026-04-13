@@ -79,7 +79,31 @@ def plot_predicted_vs_actual_by_season(predictions_path: str = "data/results/*/*
                     .sort_index() # Rows are sorted by season in ascending order
                 )
 
-                ax = table.plot(kind="bar", figsize=(14, 6)) # A grouped bar chart is created using the data from table
+                outcomes = ["Home Win", "Draw", "Away Win"] # The three class to plot are defined
+                outcome_colours = {"Home Win": ("#1f77b4", "#ff7f0e"), "Draw": ("#2ca02c", "#d62728"), "Away Win": ("#9467bd", "#8c564b")} # A dictionary mapping the actual and predicted colours for each class is defined
+                seasons = table.index.tolist() # The season values are extracted from the table index and stored as a list
+                number_of_seasons = len(seasons) # The number of seasons are stored
+                number_of_outcomes = len(outcomes) # The number of outcomes per season are stored
+                group_width = 0.8 # The total width allocated for each season group is set
+                bar_width = group_width / number_of_outcomes # The width of each outcome pair in the group is calculated
+                single_bar_width = (bar_width * 0.9) / 1.75 # For each outcome pair 90% of the space is allocated for the bar pairs and 10% for the space between the classes and dividing by 1.75 since 25% of the bars overlap returns the width of a single bar
+                pair_width = single_bar_width * 1.75 # The total width of the actual and predicted bar pair with a 25% overlap is calculated
+
+                fig, ax = plt.subplots(figsize=(14, 6)) # A figure and axes are created
+                for outcome_idx, outcome in enumerate(outcomes): # For each outcome and its respective index
+                    actual_colour, predicted_colour = outcome_colours[outcome] # The actual and predicted colours for the respective outcome are stored
+                    slot_centre = (outcome_idx - (number_of_outcomes - 1) / 2) * bar_width # Positions the current outcome slot to the left, center, or to the ight of the season tick
+                    for season_idx, season in enumerate(seasons): # For each season and its respective index
+                        pair_left = season_idx + slot_centre - pair_width / 2 # The point were the bar pair starts is calculated
+                        actual_x = pair_left + single_bar_width / 2 # The centre of the actual bar is calculated
+                        predicted_x = pair_left + single_bar_width * 0.75 + single_bar_width / 2 # The center of the predicted bar is calculated
+                        actual_val = table.loc[season, (outcome, "Actual")] if (outcome, "Actual") in table.columns else 0 # The actual outcome count for the current season is looked up from the table and returned if found and 0 if not found
+                        predicted_val = table.loc[season, (outcome, "Predicted")] if (outcome, "Predicted") in table.columns else 0 # The predicted outcome count for the current season is looked up from the table and returned if found and 0 if not found
+                        ax.bar(actual_x, actual_val, width=single_bar_width, color=actual_colour, label=f"({outcome}, Actual)" if season_idx == 0 else "") # The actual bar is plotted first
+                        ax.bar(predicted_x, predicted_val, width=single_bar_width, color=predicted_colour, label=f"({outcome}, Predicted)" if season_idx == 0 else "") # The predicted bar is plotted after to cover 25% of the actual bar
+
+                ax.set_xticks(range(number_of_seasons)) # One x-axis tick per season is set
+                ax.set_xticklabels([str(s) for s in seasons]) # The label for each x-axis tick is set to the year of the season
                 ax.set_title(f"{model}: Actual vs Predicted Outcomes by Season (Home/Away/Draw)") # Title for bar chart is set
                 ax.set_xlabel("Season") # X-axis label is set
                 ax.set_ylabel("Number of Matches") # Y-axis label is set
