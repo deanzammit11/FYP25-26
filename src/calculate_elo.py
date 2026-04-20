@@ -118,8 +118,8 @@ def add_elo_features(df, k_factor=20): # Adds Elo ratings and sets the intial el
     margin_probability_table = non_draw_margins["Margin"].value_counts(normalize=True) # The number of appearances of each unique margin is counted and divided by the total number of times where the margin was not 0
     margin_probability_lookup = {float(margin): float(probability) for margin, probability in margin_probability_table.items()} # For each margin a dictionary entry is built in the format margin: probability and stored in a dictionary as a float
     default_p_margin = float(margin_probability_table.min()) # Unseen margins are set to the least common margin
-    normalization_numerator = sum((margin ** 0.5) * probability for margin, probability in margin_probability_lookup.items()) # For each margin and respective probability sqrt(j) * p_margin(j) is calculated and all the sum is then calculated
-    if normalization_numerator <= 0: # If the numerator is invalid
+    normalisation_numerator = sum((margin ** 0.5) * probability for margin, probability in margin_probability_lookup.items()) # For each margin and respective probability sqrt(j) * p_margin(j) is calculated and all the sum is then calculated
+    if normalisation_numerator <= 0: # If the numerator is invalid
         raise ValueError("Invalid numerator computed from margin probabilities.") # A value error is raised
     estimated_margins = [] # A list which will store the estimated margin for each fixture row is initialised
     p_margin_values = [] # A list which will store the p_margin value for each fixture row is initialised
@@ -177,7 +177,7 @@ def add_elo_features(df, k_factor=20): # Adds Elo ratings and sets the intial el
             if score_home == 0.5: # If the home side drew
                 s_norm = 1.0 # The normalisation term S is set to a neutral value
             else: # If the home side won or lost
-                s_norm = normalization_numerator / max(float(p_1x2), 1e-12) # The normalisation term S is computed
+                s_norm = normalisation_numerator / max(float(p_1x2), 1e-12) # The normalisation term S is computed
             delta_elo_1x2 = k_factor * (score_home - expected_home) # The basic Elo change for the home side is calculated
             if score_home == 0.5: # If the home side drew
                 delta_home = delta_elo_1x2 # The basic elo change is kept
@@ -228,7 +228,7 @@ def add_elo_features(df, k_factor=20): # Adds Elo ratings and sets the intial el
             if score_home == 0.5: # If the home side drew
                 s_norm = 1.0 # The normalisation term S is set to a neutral value
             else: # If the home side won or lost
-                s_norm = normalization_numerator / max(float(p_1x2), 1e-12) # The normalisation term S is computed
+                s_norm = normalisation_numerator / max(float(p_1x2), 1e-12) # The normalisation term S is computed
             delta_elo_1x2 = k_factor * (score_home - expected_home) # The basic Elo change for the home side is calculated
             if score_home == 0.5: # If the home side drew
                 delta_home = delta_elo_1x2 # The basic elo change is kept
@@ -298,8 +298,8 @@ def predict_2023_with_elo_updates(model, test_df, feature_columns, prediction_to
     margin_probability_table = non_draw_margins["Margin"].value_counts(normalize=True) # The number of appearances of each unique margin is counted and divided by the total number of times where the margin was not 0
     margin_probability_lookup = {float(margin): float(probability) for margin, probability in margin_probability_table.items()} # For each margin a dictionary entry is built in the format margin: probability and stored in a dictionary as a float
     default_p_margin = float(margin_probability_table.min()) # Unseen margins are set to the least common margin
-    normalization_numerator = sum((margin ** 0.5) * probability for margin, probability in margin_probability_lookup.items()) # For each margin and respective probability sqrt(j) * p_margin(j) is calculated and all the sum is then calculated
-    if normalization_numerator <= 0: # If the numerator is invalid
+    normalisation_numerator = sum((margin ** 0.5) * probability for margin, probability in margin_probability_lookup.items()) # For each margin and respective probability sqrt(j) * p_margin(j) is calculated and all the sum is then calculated
+    if normalisation_numerator <= 0: # If the numerator is invalid
         raise ValueError("Invalid numerator computed from margin probabilities.") # A value error is raised
 
     season_sorted = test_df.sort_values(["DateParsed", "HomeTeam", "AwayTeam"]) # Rows are first sorted in chronological order by date and they are then sorted by HomeTeam and AwayTeam
@@ -419,7 +419,7 @@ def predict_2023_with_elo_updates(model, test_df, feature_columns, prediction_to
             if score_home == 0.5: # If the home side drew
                 s_norm = 1.0 # The normalisation term S is set to a neutral value
             else: # If the home side won or lost
-                s_norm = normalization_numerator / max(float(p_1x2), 1e-12) # The normalisation term S is computed
+                s_norm = normalisation_numerator / max(float(p_1x2), 1e-12) # The normalisation term S is computed
             test_df.at[idx, "SNorm"] = float(s_norm) # The normalisation term S is added to the dataframe at the fixture index of test_df
             delta_elo_1x2 = k_factor * (score_home - expected_home) # The basic Elo change for the home side is calculated
             if score_home == 0.5: # If the home side drew
@@ -483,7 +483,7 @@ def predict_2023_with_elo_updates(model, test_df, feature_columns, prediction_to
             if score_home == 0.5: # If the home side drew
                 s_norm = 1.0 # The normalisation term S is set to a neutral value
             else: # If the home side won or lost
-                s_norm = normalization_numerator / max(float(p_1x2), 1e-12) # The normalisation term S is computed
+                s_norm = normalisation_numerator / max(float(p_1x2), 1e-12) # The normalisation term S is computed
             delta_elo_1x2 = k_factor * (score_home - expected_home) # The basic Elo change for the home side is calculated
             if score_home == 0.5: # If the home side drew
                 delta_home = delta_elo_1x2 # The basic elo change is kept

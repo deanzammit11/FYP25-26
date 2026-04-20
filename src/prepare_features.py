@@ -33,9 +33,6 @@ def prepare_features():
     df["OddsDifference_HvD"] = (df["Bet365HomeWinOdds"] - df["Bet365DrawOdds"]) # Home vs draw raw odds difference without absolute value
     df["OddsDifference_AvD"] = (df["Bet365AwayWinOdds"] - df["Bet365DrawOdds"]) # Away vs draw raw odds difference without absolute value
     df["DrawLikelihood"] = 1 / df["Bet365DrawOdds"] # Bookmaker probability of a draw before margin normalisation
-    # df["OddsDifference_HvA"] = (df["Bet365HomeWinOdds"] - df["Bet365AwayWinOdds"]).abs() # Home vs away raw odds difference with absolute value
-    # df["OddsDifference_HvD"] = (df["Bet365HomeWinOdds"] - df["Bet365DrawOdds"]).abs() # Home vs draw raw odds difference with absolute value
-    # df["OddsDifference_AvD"] = (df["Bet365AwayWinOdds"] - df["Bet365DrawOdds"]).abs() # Away vs draw raw odds difference with absolute value
 
     odds_cols = [ # Columns to store in odds csv file are selected
         "Season", "Date", "HomeTeam", "AwayTeam", "ResultEncoded",

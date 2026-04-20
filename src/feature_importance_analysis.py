@@ -89,11 +89,11 @@ def feature_importance_analysis():
                     "MaxAbsoluteCoefficient": max_absolute, # The maximum absolute coefficient for the respective feature is stored
                 }
             ).sort_values(["MeanAbsoluteCoefficient", "Feature"], ascending=[False, True]).reset_index(drop=True) # The coefficient summary dataframe is sorted by mean absolute coefficient in descending order and then by feature name in alphabetical order and the row index is reset
-            method_name = "Standardized Coefficients" # The model specific method label is stored
+            method_name = "Standardised Coefficients" # The model specific method label is stored
             method_value_column = "MeanAbsoluteCoefficient" # The model specific column name to be treated as the importance value is stored
-            method_specific_df.to_csv(output_dir / "logistic_regression_standardized_coefficients.csv", index=False) # The logistic regression coefficient summary csv is saved to the specified directory
-            plot_title = "Logistic Regression: Standardized Coefficients" # The model specific plot title is stored
-            plot_path = output_dir / "logistic_regression_standardized_coefficients.png" # The model specific plot output path is stored
+            method_specific_df.to_csv(output_dir / "logistic_regression_standardised_coefficients.csv", index=False) # The logistic regression coefficient summary csv is saved to the specified directory
+            plot_title = "Logistic Regression: Standardised Coefficients" # The model specific plot title is stored
+            plot_path = output_dir / "logistic_regression_standardised_coefficients.png" # The model specific plot output path is stored
         elif model_key == "random_forest": # If the current model being analysed is random forest
             background = X_train # The SHAP background dataset to be used as a baseline for comparison to see how much each feature moved the prediction is set to all training rows
             explain_data = X_test # The rows which require feature explanation with SHAP are set to all testing rows

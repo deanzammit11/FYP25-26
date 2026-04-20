@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from src.utils import ensure_dirs, extract_model_name_from_filename
 
-def betting_simulation(max_fraction=1.0, min_edge_per_model={"logistic_regression": 0.15, "random_forest": 0.15, "xgboost": 0.1}, min_odds_per_model={"logistic_regression": 1.5, "random_forest": 2.0, "xgboost": 1.5}, starting_bankroll_values=[380.0, 760.0, 1140.0, 1520.0, 1900.0, 2280.0, 2660.0, 3040.0, 3420.0, 3800.0], prediction_years=[2020, 2021, 2022, 2023]):
+def betting_simulation(max_fraction=1.0, min_edge_per_model={"logistic_regression": 0.15, "random_forest": 0.15, "xgboost": 0.30}, min_odds_per_model={"logistic_regression": 1.5, "random_forest": 2.0, "xgboost": 2.0}, starting_bankroll_values=[380.0, 760.0, 1140.0, 1520.0, 1900.0, 2280.0, 2660.0, 3040.0, 3420.0, 3800.0], prediction_years=[2020, 2021, 2022, 2023]):
     max_fraction = float(max_fraction) # Maximum allowed stake fraction is converted to float
     min_edge_per_model = {k: float(v) for k, v in min_edge_per_model.items()} # Minimum Kelly edge per model is converted to float
     min_odds_per_model = {k: float(v) for k, v in min_odds_per_model.items()} # Minimum odds per model is converted to float
