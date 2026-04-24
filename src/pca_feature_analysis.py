@@ -140,10 +140,8 @@ def pca_feature_analysis():
             plt.close(fig) # Current figure is closed
 
     component_numbers = list(range(1, len(explained_variance_df) + 1)) # A list of principal component numbers starting from 1 is created for plotting
-    x_tick_step = max(1, len(component_numbers) // 10) # The spacing between x-axis ticks is set by selecting the largest step between 1 and the whole number returned when dividing the number of components by 10
-    x_tick_positions = component_numbers[::x_tick_step] # The x-axis tick positions are stored by stepping through the list by the computed step size
-    if x_tick_positions[-1] != component_numbers[-1]: # If the last component number is not already included in the tick positions
-        x_tick_positions.append(component_numbers[-1]) # The last component number is appended to the list of tick positions so the end of the axis is labelled
+    x_tick_positions = [1] # A list storing the x-axis tick positions is created with the first principal component included
+    x_tick_positions.extend(position for position in range(5, len(component_numbers) + 1, 5)) # Additional x-axis tick positions are added every 5 principal components
 
     fig, ax = plt.subplots(figsize=(10, 6)) # A matplotlib figure and axis are created for the scree plot
     ax.plot(component_numbers, explained_variance_df["ExplainedVarianceRatio"], marker="o", linewidth=2) # A line for the scree plot with the component numbers on the x-axis, explained variance ratio on the y-axis, a marker on each point and a line thickness of 2

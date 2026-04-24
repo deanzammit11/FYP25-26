@@ -39,6 +39,7 @@ def betting_simulation(max_fraction=1.0, min_edge_per_model={"logistic_regressio
 
         combined_summaries = [] # A list to store each model summary dataframe is initialised
         starting_bankroll_summary_rows = [] # A list to store each model, strategy, and starting bankroll summary is initialised
+        cumulative_bankroll_plot_dataframes = [] # A list to store the dataframes required for the yearly cumulative bankroll plot is initialised
         training_base = training_data_df[training_data_df["Season"] < prediction_year].copy() # Only seasons before the prediction year are kept for initial matchup history
         training_base["ResultEncoded"] = pd.to_numeric(training_base["ResultEncoded"], errors="coerce") # Match outcome in training data is converted to numeric
         training_base["EloTierHome"] = pd.to_numeric(training_base["EloTierHome"], errors="coerce") # Home Elo tier in training data is converted to numeric
@@ -463,6 +464,17 @@ def betting_simulation(max_fraction=1.0, min_edge_per_model={"logistic_regressio
                     summary.to_csv(summary_path, index=False) # Summary csv is saved
                     print(f"Saved Kelly/Half-Kelly betting log: {betting_log_path}") # Confirmation message for betting log is printed
                     print(f"Saved Kelly/Half-Kelly summary: {summary_path}") # Confirmation message for summary is printed
+                    if not betting_log.empty: # If the betting log contains per-fixture bankroll values
+                        fixture_numbers = pd.Series(range(1, len(betting_log) + 1)) # Fixture order values for the cumulative bankroll plot x-axis are created
+                        cumulative_bankroll_plot_dataframes.append(pd.DataFrame({ # The dataframe required for the yearly cumulative bankroll plot is built
+                            "Model": model_name, # Model name is stored for fixture row
+                            "FixtureNumber": fixture_numbers, # Fixture number is stored for fixture row
+                            "KellyBalanceAfter": betting_log["KellyBalanceAfter"], # Kelly bankroll after fixture is stored for fixture row
+                            "HalfKellyBalanceAfter": betting_log["HalfKellyBalanceAfter"], # Half-Kelly bankroll after fixture is stored for fixture row
+                            "IntelligentKellyBalanceAfter": betting_log["IntelligentKellyBalanceAfter"], # Intelligent Kelly bankroll after is stored for fixture row
+                            "IntelligentHalfKellyBalanceAfter": betting_log["IntelligentHalfKellyBalanceAfter"], # Intelligent Half-Kelly bankroll after fixture is stored for fixture row
+                            "FlatPredictionBalanceAfter": betting_log["FlatPredictionBalanceAfter"], # Flat Prediction bankroll after fixture is stored for fixture row
+                        }))
                     combined_summaries.append(summary) # Per model summary dataframe is added to combined summary list
 
                 if bankroll_value in starting_bankroll_values: # If this bankroll value is not used for the main simulation
@@ -500,6 +512,48 @@ def betting_simulation(max_fraction=1.0, min_edge_per_model={"logistic_regressio
         fig.savefig(bankroll_plot_path, dpi=200, bbox_inches="tight") # Image is saved to the specified path setting the resolution and cropping around the table removing extra whitespace
         plt.close(fig) # Figure is closed
         print(f"Saved Kelly/Half-Kelly starting bankroll vs final profit plot: {bankroll_plot_path}") # Confirmation message for the bankroll comparison chart is printed
+
+        cumulative_bankroll_plot_path = results_path / "betting_simulation" / str(prediction_year) / "kelly_half_kelly_cumulative_bankroll_by_strategy.png" # Cumulative bankroll chart output path is built
+        strategy_balance_columns = { # The balance columns required for each strategy are defined in a dictionary
+            "Flat Prediction": "FlatPredictionBalanceAfter", # Flat Prediction strategy label is mapped to its balance column
+            "Kelly": "KellyBalanceAfter", # Kelly strategy label is mapped to its balance column
+            "Half-Kelly": "HalfKellyBalanceAfter", # Half-Kelly strategy label is mapped to its balance column
+            "Intelligent Kelly": "IntelligentKellyBalanceAfter", # Intelligent Kelly strategy label is mapped to its balance column
+            "Intelligent Half-Kelly": "IntelligentHalfKellyBalanceAfter", # Intelligent Half-Kelly strategy label is mapped to its balance column
+        }
+        fig, ax = plt.subplots(figsize=(16, 9)) # A figure and axis are created for the cumulative bankroll plot
+        line_index = 0 # A counter representing the line index which is used to give each line a different colour is initialised
+        valid_cumulative_plot = False # Flag indicating whether at least one cumulative bankroll line was plotted is initialised
+        model_order = starting_bankroll_summary_rows_df["Model"].drop_duplicates() # The model plotting order is taken from the starting bankroll comparison dataframe dopping duplicates due to multiple strategies per model
+
+        for model_name in model_order: # For each model
+            model_plot_dataframes = [] # A list to store the cumulative bankroll dataframes for the models is initialised
+            for dataframe in cumulative_bankroll_plot_dataframes: # For each cumulative bankroll dataframe
+                if dataframe["Model"].iloc[0] == model_name: # If the dataframe model matches the current model
+                    model_plot_dataframes.append(dataframe) # The dataframe is appended to the model specific list
+            if not model_plot_dataframes: # If no cumulative bankroll dataframe was found for the current model
+                line_index += len(strategy_order) # The colour index is increased by the number of strategies so that the same colour ordering as the profit chart is kept
+                continue # The current model is skipped
+            model_plot_df = model_plot_dataframes[0].sort_values("FixtureNumber").reset_index(drop=True) # The cumulative bankroll dataframe for the current model is sorted by fixture number in ascending order and the row index is reset
+
+            for strategy_name in strategy_order: # For each betting strategy in the same order as the profit chart
+                balance_column = strategy_balance_columns[strategy_name] # The balance column for the current strategy is stored
+                if balance_column not in model_plot_df.columns: # If the required balance column is missing from the model specific dataframe
+                    line_index += 1 # The colour index is incremented so that the same colour ordering as the profit chart is kept
+                    continue # The current strategy is skipped for the current model
+                ax.plot(model_plot_df["FixtureNumber"], model_plot_df[balance_column], linewidth=2, color=colour_map(line_index), label=f"{model_name} - {strategy_name}") # A cumulative bankroll line for the current model and strategy is plotted with fixture numbers on the x-axis and the bankroll balance on the y-axis
+                line_index += 1 # The line index counter is incremented so that the same colour ordering as the profit chart is kept
+                valid_cumulative_plot = True # The flag is set to true because at least one line was plotted
+
+        ax.set_xlabel("Fixture") # The x-axis label is set
+        ax.set_ylabel("Bankroll") # The y-axis label is set
+        ax.grid(True, alpha=0.3) # Grid lines of transparency 0.3 are added across the plot
+        ax.legend(loc="center left", bbox_to_anchor=(1.02, 0.5), fontsize=9) # The legend is added and is positioned outside the plot on the right
+        fig.tight_layout() # Layout is adjusted
+        if valid_cumulative_plot: # If at least one cumulative bankroll line was plotted
+            fig.savefig(cumulative_bankroll_plot_path, dpi=200, bbox_inches="tight") # Image is saved to the specified path setting the resolution and cropping around the plot removing extra whitespace
+            print(f"Saved Kelly/Half-Kelly cumulative bankroll plot: {cumulative_bankroll_plot_path}") # Confirmation message for the cumulative bankroll chart is printed
+        plt.close(fig) # Figure is closed
 
 if __name__ == "__main__":
     betting_simulation()

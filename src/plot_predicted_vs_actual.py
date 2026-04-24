@@ -104,14 +104,14 @@ def plot_predicted_vs_actual_by_season(predictions_path: str = "data/results/*/*
 
                 ax.set_xticks(range(number_of_seasons)) # One x-axis tick per season is set
                 ax.set_xticklabels([str(s) for s in seasons]) # The label for each x-axis tick is set to the year of the season
-                ax.set_title(f"{model}: Actual vs Predicted Outcomes by Season (Home/Away/Draw)") # Title for bar chart is set
+                ax.set_title(f"{model}: Actual vs Predicted Outcomes (Home/Draw/Away)") # Title for bar chart is set
                 ax.set_xlabel("Season") # X-axis label is set
                 ax.set_ylabel("Number of Matches") # Y-axis label is set
                 ax.grid(axis="y", alpha=0.2) # Grid lines of transparency 0.2 are added across the y-axis
                 ax.legend(title="Outcome, Source", bbox_to_anchor=(1.02, 1), loc="upper left") # Title for legend is set and legend is positioned outside the plot
                 plt.tight_layout() # Layout is adjusted
 
-                output_png = os.path.join(output_path, f"{model}_actual_vs_predicted_by_season.png") # Output path for the image is defined
+                output_png = os.path.join(output_path, f"{model}_actual_vs_predicted.png") # Output path for the image is defined
                 plt.savefig(output_png, dpi=200) # Figure is saved to the specified path and resolution is set
                 plt.close() # Figure is closed
 
